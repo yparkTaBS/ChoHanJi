@@ -1,12 +1,14 @@
 package CompositionRoot
 
 import (
+	"ChoHanJi/config/PilgrimCraftConfig"
 	"ChoHanJi/drivers/http/delegatingHandlers/GenericPanicCatcher"
 	"ChoHanJi/drivers/http/delegatingHandlers/JobNameAttacher"
 	"ChoHanJi/drivers/http/delegatingHandlers/LoggerAttacher"
 	"ChoHanJi/drivers/http/handlers"
 	"ChoHanJi/infrastructure/Logging"
 	ctx "context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -16,23 +18,34 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func CreateEndPoints(container gi.Container) (*chi.Mux, error) {
+func CreateEndPoints(container gi.Container, config *PilgrimCraftConfig.PilgrimCraftConfig) (*chi.Mux, error) {
 	r := chi.NewRouter()
-	r.Mount("/api", RegisterPOSTRoom(container))
+
+	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slog.Default().ErrorContext(r.Context(), fmt.Sprintf("Not found %s", r.URL.Path))
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	origin := fmt.Sprintf("%s:%s", config.Server.Host, "3000")
+
+	r.Mount("/api/room", RegisterPOSTRoom(container, handlers.POSTRoom, origin))
+	r.Mount("/api/character", RegisterPOSTPlayer(container, handlers.POSTCharacter, origin))
+	r.Mount(string(handlers.GETPlayerEvent), RegisterGETPlayerEvent(container, string(handlers.GETPlayerEvent), origin))
+	r.Mount("/api/room/waiting/admin", RegisterAdminWaitingRoom(container, handlers.GETRoomAdmin, origin))
 
 	return r, nil
 }
 
-func RegisterPOSTRoom(container gi.Container) *chi.Mux {
+func RegisterPOSTRoom(container gi.Container, route handlers.RouteToken, origin string) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(JobNameAttacher.New("POST /api/room"))
+	r.Use(JobNameAttacher.New(fmt.Sprintf("POST %s", route)))
 	r.Use(LoggerAttacher.New())
 	r.Use(GenericPanicCatcher.New())
 
-	r.Post("/room", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 
 		context, cancel := ctx.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
@@ -46,9 +59,109 @@ func RegisterPOSTRoom(container gi.Container) *chi.Mux {
 			return
 		}
 
-		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(handlers.POSTRoom))
+		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
 		if err != nil {
 			logger.ErrorContext(context, "POST /api/room: Could not resolve handler", slog.Any("Error", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+
+	return r
+}
+
+func RegisterPOSTPlayer(container gi.Container, route handlers.RouteToken, origin string) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(JobNameAttacher.New(fmt.Sprintf("POST %s", route)))
+	r.Use(LoggerAttacher.New())
+	r.Use(GenericPanicCatcher.New())
+
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+
+		context, cancel := ctx.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+
+		r = r.WithContext(context)
+
+		logger, err := Logging.RetrieveLogger(context)
+		if err != nil {
+			slog.ErrorContext(context, "POST /api/character: Could not retrieve logger from the context")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
+		if err != nil {
+			logger.ErrorContext(context, "POST /api/character: Could not resolve handler", slog.Any("Error", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+
+	return r
+}
+
+func RegisterAdminWaitingRoom(container gi.Container, route handlers.RouteToken, origin string) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(JobNameAttacher.New(fmt.Sprintf("GET %s", route)))
+	r.Use(LoggerAttacher.New())
+	r.Use(GenericPanicCatcher.New())
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+
+		context := r.Context()
+		logger, err := Logging.RetrieveLogger(context)
+		if err != nil {
+			slog.ErrorContext(context, "GET /api/room/admin: Could not retrieve logger from the context")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
+		if err != nil {
+			logger.ErrorContext(context, "GET /api/room/admin: Could not resolve handler", slog.Any("Error", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+
+	return r
+}
+
+func RegisterGETPlayerEvent(container gi.Container, route string, origin string) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(JobNameAttacher.New(fmt.Sprintf("GET %s", route)))
+	r.Use(LoggerAttacher.New())
+	r.Use(GenericPanicCatcher.New())
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+
+		context := r.Context()
+		logger, err := Logging.RetrieveLogger(context)
+		if err != nil {
+			slog.ErrorContext(context, "GET /api/player/event: Could not retrieve logger from the context")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
+		if err != nil {
+			logger.ErrorContext(context, "POST /api/player/event: Could not resolve handler", slog.Any("Error", err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

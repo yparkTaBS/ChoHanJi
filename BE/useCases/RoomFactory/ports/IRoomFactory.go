@@ -1,7 +1,9 @@
 package ports
 
-import "ChoHanJi/domain/Map"
+import (
+	r "ChoHanJi/domain/Room"
+)
 
 type IRoomFactory interface {
-	Create(width int, height int, items string) (Map.Id, error)
+	Create(width int, height int, items string) (r.Id, error)
 }

@@ -18,7 +18,9 @@ export default function Home() {
             </Link>
           </Button>
           <Button size="lg">
-            Join a Room
+            <Link href="Player/Create">
+              Join a Room
+            </Link>
           </Button>
         </CardContent>
       </Card>

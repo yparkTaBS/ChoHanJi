@@ -1,13 +1,21 @@
 package bootstrap
 
 import (
-	"ChoHanJi/domain/Map"
+	"ChoHanJi/domain/Room"
+	"ChoHanJi/driven/sse/SSEHub"
 	"ChoHanJi/drivers/http/handlers"
+	"ChoHanJi/drivers/http/handlers/CreateCharacter"
 	"ChoHanJi/drivers/http/handlers/CreateRoom"
+	"ChoHanJi/drivers/http/handlers/PlayerRoom"
+	"ChoHanJi/drivers/http/handlers/WaitingRoom"
+	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
+	"ChoHanJi/useCases/CharacterFactory"
+	"ChoHanJi/useCases/PlayerWaitingRoomUseCase"
 	"ChoHanJi/useCases/RoomFactory"
 	"ChoHanJi/useCases/RoomFactory/ports"
 	"context"
 	"fmt"
+	"net/http"
 
 	gi "github.com/TaBSRest/GoFac/interfaces"
 	cb "github.com/TaBSRest/GoFac/pkg/ContainerBuilder"
@@ -31,6 +39,10 @@ func Register(ctx context.Context) gi.Container {
 		panic(fmt.Errorf("could not register domains! %w", err))
 	}
 
+	if err := RegisterDriven(ctx, cb); err != nil {
+		panic(fmt.Errorf("could not register driven adapters! %w", err))
+	}
+
 	if err := RegisterExternalDependencies(ctx, cb); err != nil {
 		panic(fmt.Errorf("could not register external dependencies! %w", err))
 	}
@@ -48,6 +60,34 @@ func RegisterDrivers(ctx context.Context, builder *cb.ContainerBuilder) error {
 		CreateRoom.New,
 		o.AsSingleton,
 		o.Named(string(handlers.POSTRoom)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		WaitingRoom.New,
+		o.AsSingleton,
+		o.Named(string(handlers.GETRoomAdmin)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		CreateCharacter.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTCharacter)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		PlayerRoom.New,
+		o.AsSingleton,
+		o.Named(string(handlers.GETPlayerEvent)),
+		o.As[http.Handler],
 	); err != nil {
 		return err
 	}
@@ -63,16 +103,62 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	); err != nil {
 		return err
 	}
+
+	if err := builder.Register(
+		AdminWaitingRoomUseCase.New,
+		o.AsSingleton,
+		o.As[AdminWaitingRoomUseCase.IAdminWaitingRoomUseCase],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		CharacterFactory.New,
+		o.AsSingleton,
+		o.As[CharacterFactory.ICharacterFactory],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		PlayerWaitingRoomUseCase.New,
+		o.AsSingleton,
+		o.As[PlayerWaitingRoomUseCase.IPlayerWaitingRoomUseCase],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func RegisterDomains(ctx context.Context, builder *cb.ContainerBuilder) error {
 	if err := builder.Register(
-		Map.New,
+		Room.New,
 		o.AsSingleton,
 	); err != nil {
 		return err
 	}
+	return nil
+}
+
+func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
+	if err := builder.Register(
+		SSEHub.New,
+		o.AsSingleton,
+		o.As[AdminWaitingRoomUseCase.IHub],
+		o.As[PlayerWaitingRoomUseCase.IRoomHub],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		SSEHub.New,
+		o.AsSingleton,
+		o.As[PlayerWaitingRoomUseCase.IPlayerHub],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 

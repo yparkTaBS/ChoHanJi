@@ -25,7 +25,7 @@ func main() {
 
 	container := bootstrap.Register(appContext)
 
-	routes, err := CompositionRoot.CreateEndPoints(container)
+	routes, err := CompositionRoot.CreateEndPoints(container, config)
 	if err != nil {
 		panic(err)
 	}

@@ -2,6 +2,7 @@ package Map
 
 import (
 	"ChoHanJi/domain/Item"
+	"ChoHanJi/domain/Player"
 	"math/rand"
 	"strings"
 )
@@ -23,8 +24,8 @@ func NewMap(width, height int, itemList string) (*Map, error) {
 		}
 	}
 
-	items := strings.Split(itemList, ",")
-	for _, itemName := range items {
+	items := strings.SplitSeq(itemList, ",")
+	for itemName := range items {
 		x := rand.Intn(width)
 		y := rand.Intn(height)
 		item, err := Item.New(itemName)
@@ -35,4 +36,14 @@ func NewMap(width, height int, itemList string) (*Map, error) {
 	}
 
 	return fieldMap, nil
+}
+
+func PlacePlayer(fieldMap Map, player *Player.Player) {
+	if player.TeamNumber == 1 {
+		fieldMap.tiles[0][0].AddPlayer(player)
+	} else {
+		x := len(fieldMap.tiles) - 1
+		y := len(fieldMap.tiles[0]) - 1
+		fieldMap.tiles[x][y].AddPlayer(player)
+	}
 }
