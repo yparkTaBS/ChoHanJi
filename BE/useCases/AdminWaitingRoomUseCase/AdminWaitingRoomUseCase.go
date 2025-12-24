@@ -5,8 +5,10 @@ import (
 	"ChoHanJi/driven/sse/SSEHub"
 	"ChoHanJi/infrastructure/Logging"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -42,7 +44,10 @@ func (uc *AdminWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 
 	ch := uc.hub.Subscribe(roomId, "admin")
 	defer func() {
-		_ = uc.hub.Unsubscribe(roomId, "admin")
+		logger.Error("AdminWaitingRoomUseCase.ConnectAndListen: Unsubscribing...")
+		if err := uc.hub.Unsubscribe(roomId, "admin"); err != nil {
+			logger.Error("AdminWaitingRoomUseCase.ConnectAndListen:Error Unsubscribing", slog.Any("Error", err))
+		}
 	}()
 
 	connectedMessage := fmt.Sprintf(`{"MessageType":"Connection","Message":"Connected to the room %s"}`, roomId)
@@ -77,7 +82,7 @@ func (uc *AdminWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 			}
 			flusher.Flush()
 		case <-ctx.Done():
-			return nil
+			return errors.New("context done?")
 		}
 	}
 }

@@ -123,41 +123,6 @@ export default function CharacterPage({
     return target.r === enemyPos.r && target.c === enemyPos.c;
   }
 
-  useEffect(() => {
-    const es = new EventSource(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}api/room/waiting/admin?roomId=${roomId}`
-    );
-    esRef.current = es;
-
-    es.onopen = () => {
-      console.log("SSE connected");
-    };
-
-    es.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as { MessageType: string; Message?: string };
-
-        const baseMessage = new Message(data.MessageType);
-
-        if (baseMessage.MessageType === "PlayerConnected") {
-        }
-      } catch (e) {
-        console.log(e);
-        return;
-      }
-    };
-
-    es.onerror = (err) => {
-      console.error("SSE error", err);
-      router.back();
-    };
-
-    return () => {
-      es.close();
-      esRef.current = null;
-    };
-  }, [roomId, router]);
-
   // NEW: if we are in attack mode and the selected direction no longer points at the enemy, clear it
   useEffect(() => {
     if (mode !== "attack") return;
@@ -347,7 +312,7 @@ export default function CharacterPage({
 
     es.onopen = () => console.log("SSE connected");
     es.onmessage = (event) => console.log("SSE message:", event.data);
-    es.onerror = (err) => console.error("SSE error", err);
+    es.onerror = (err) => console.log("SSE error", err);
 
     return () => {
       es.close();

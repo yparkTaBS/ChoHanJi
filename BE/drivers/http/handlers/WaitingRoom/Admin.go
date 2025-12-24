@@ -1,6 +1,7 @@
 package WaitingRoom
 
 import (
+	"ChoHanJi/infrastructure/Logging"
 	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
 	"io"
 	"log/slog"
@@ -25,6 +26,8 @@ func (a *AdminWaitingRoom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	logger, _ := Logging.RetrieveLogger(ctx)
+
 	ioWriter, ok := w.(io.Writer)
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -47,7 +50,7 @@ func (a *AdminWaitingRoom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 
 	if err := a.uc.ConnectAndListen(ctx, ioWriter, roomId, flusher); err != nil {
-		slog.Default().ErrorContext(ctx, "Something went wrong...", slog.Any("Error", err))
+		logger.ErrorContext(ctx, "Something went wrong...", slog.Any("Error", err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

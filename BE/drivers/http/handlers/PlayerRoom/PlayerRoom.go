@@ -1,6 +1,7 @@
 package PlayerRoom
 
 import (
+	"ChoHanJi/infrastructure/Logging"
 	"ChoHanJi/useCases/PlayerWaitingRoomUseCase"
 	"io"
 	"log/slog"
@@ -25,6 +26,8 @@ func (p *PlayerRoom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	logger, _ := Logging.RetrieveLogger(ctx)
+
 	ioWriter, ok := w.(io.Writer)
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -48,7 +51,7 @@ func (p *PlayerRoom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 
 	if err := p.uc.ConnectAndListen(ctx, ioWriter, roomId, playerId, flusher); err != nil {
-		slog.Default().ErrorContext(ctx, "Something went wrong...", slog.Any("Error", err))
+		logger.ErrorContext(ctx, "Something went wrong...", slog.Any("Error", err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

@@ -11,6 +11,7 @@ import (
 	"ChoHanJi/drivers/http/handlers/WaitingRoom"
 	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
 	"ChoHanJi/useCases/CharacterFactory"
+	"ChoHanJi/useCases/GameStatus"
 	"ChoHanJi/useCases/PlayerWaitingRoomUseCase"
 	"ChoHanJi/useCases/RoomFactory"
 	"ChoHanJi/useCases/RoomFactory/ports"
@@ -147,6 +148,14 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 		return err
 	}
 
+	if err := builder.Register(
+		GameStatus.New,
+		o.AsSingleton,
+		o.As[GameStatus.Interface],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -167,6 +176,14 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.As[AdminWaitingRoomUseCase.IHub],
 		o.As[PlayerWaitingRoomUseCase.IHub],
 		o.As[StartGameUseCase.IHub],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		SSEHub.New,
+		o.AsSingleton,
+		o.As[GameStatus.IHub],
 	); err != nil {
 		return err
 	}

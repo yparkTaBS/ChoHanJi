@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 )
 
@@ -82,14 +81,6 @@ func (h *SSEHub) Publish(roomId, subscriberId, messageType, messageBody string) 
 	if !found {
 		h.mu.RUnlock()
 		return errors.New("roomId is not registered")
-	}
-
-	logger := slog.Default()
-	logger.Error("---")
-	logger.Error(subscriberId)
-	logger.Error("---")
-	for subId := range clients {
-		logger.Error(subId)
 	}
 
 	client, found := clients[subscriberId]
