@@ -1,10 +1,10 @@
 package SSEHub
 
 import (
-	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -14,31 +14,38 @@ type Message struct {
 }
 
 type SSEHub struct {
-	mu      sync.Mutex
-	clients map[string][]chan []byte
+	mu      sync.RWMutex
+	clients map[string]map[string]chan []byte
 }
-
-var _ AdminWaitingRoomUseCase.IHub = (*SSEHub)(nil)
 
 func New() *SSEHub {
 	return &SSEHub{
-		clients: make(map[string][]chan []byte),
+		clients: make(map[string]map[string]chan []byte),
 	}
 }
 
-func (h *SSEHub) Subscribe(roomId string) (<-chan []byte, int) {
+func (h *SSEHub) Subscribe(roomId, subscriberId string) <-chan []byte {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	ch := make(chan []byte, 16)
-	list := h.clients[roomId]
-	index := len(list)
-	h.clients[roomId] = append(list, ch)
 
-	return ch, index
+	clients, found := h.clients[roomId]
+	if !found {
+		h.clients[roomId] = make(map[string]chan []byte)
+		clients = h.clients[roomId]
+	}
+
+	client, found := clients[subscriberId]
+	if found {
+		close(client)
+	}
+	clients[subscriberId] = ch
+
+	return ch
 }
 
-func (h *SSEHub) Unsubscribe(roomId string, index int) error {
+func (h *SSEHub) Unsubscribe(roomId, subscriberId string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -47,31 +54,22 @@ func (h *SSEHub) Unsubscribe(roomId string, index int) error {
 		return errors.New("roomId is not registered")
 	}
 
-	if index < 0 || index >= len(clients) {
-		return errors.New("index out of range")
+	ch, found := clients[subscriberId]
+	if !found {
+		return nil
 	}
 
-	if clients[index] == nil {
-		return nil // already unsubscribed
-	}
+	delete(clients, subscriberId)
+	close(ch)
 
-	clients[index] = nil
-
-	isAllChannelDeleted := true
-	for _, channel := range clients {
-		if channel != nil {
-			isAllChannelDeleted = false
-		}
-	}
-
-	if isAllChannelDeleted {
+	if len(clients) == 0 {
 		delete(h.clients, roomId)
 	}
 
 	return nil
 }
 
-func (h *SSEHub) Publish(roomId, messageType, messageBody string) error {
+func (h *SSEHub) Publish(roomId, subscriberId, messageType, messageBody string) error {
 	message := Message{messageType, messageBody}
 
 	msg, err := json.Marshal(message)
@@ -79,18 +77,61 @@ func (h *SSEHub) Publish(roomId, messageType, messageBody string) error {
 		return fmt.Errorf("SSEHub.Publish: Could not marshal the message: %w", err)
 	}
 
-	h.mu.Lock()
-	list, ok := h.clients[roomId]
-	if !ok {
-		h.mu.Unlock()
+	h.mu.RLock()
+	clients, found := h.clients[roomId]
+	if !found {
+		h.mu.RUnlock()
 		return errors.New("roomId is not registered")
 	}
 
-	snapshot := make([]chan []byte, len(list))
-	copy(snapshot, list)
-	h.mu.Unlock()
+	logger := slog.Default()
+	logger.Error("---")
+	logger.Error(subscriberId)
+	logger.Error("---")
+	for subId := range clients {
+		logger.Error(subId)
+	}
 
-	for _, ch := range snapshot {
+	client, found := clients[subscriberId]
+	if !found {
+		h.mu.RUnlock()
+		return fmt.Errorf("subscriber, %s, is not found", subscriberId)
+	}
+
+	select {
+	case client <- msg:
+	default:
+	}
+
+	h.mu.RUnlock()
+
+	return nil
+}
+
+func (h *SSEHub) PublishToAll(roomId, messageType string, messageBody string) error {
+	message := Message{messageType, messageBody}
+
+	msg, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("SSEHub.Publish: Could not marshal the message: %w", err)
+	}
+
+	h.mu.RLock()
+	clients, ok := h.clients[roomId]
+	if !ok {
+		h.mu.RUnlock()
+		return errors.New("roomId is not registered")
+	}
+
+	chans := make([]chan []byte, 0, len(clients))
+	for _, ch := range clients {
+		if ch != nil {
+			chans = append(chans, ch)
+		}
+	}
+	h.mu.RUnlock()
+
+	for _, ch := range chans {
 		if ch == nil {
 			continue
 		}
@@ -99,5 +140,6 @@ func (h *SSEHub) Publish(roomId, messageType, messageBody string) error {
 		default:
 		}
 	}
+
 	return nil
 }

@@ -2,6 +2,7 @@ package AdminWaitingRoomUseCase
 
 import (
 	r "ChoHanJi/domain/Room"
+	"ChoHanJi/driven/sse/SSEHub"
 	"ChoHanJi/infrastructure/Logging"
 	"context"
 	"fmt"
@@ -11,11 +12,13 @@ import (
 )
 
 type IHub interface {
-	Subscribe(roomId string) (<-chan []byte, int)
-	Unsubscribe(roomId string, index int) error
+	Subscribe(roomId, subscriberId string) <-chan []byte
+	Unsubscribe(roomId, subscriberId string) error
 }
 
-type IAdminWaitingRoomUseCase interface {
+var _ IHub = (*SSEHub.SSEHub)(nil)
+
+type UseCaseInterface interface {
 	ConnectAndListen(ctx context.Context, w io.Writer, roomId string, flusher http.Flusher) error
 }
 
@@ -24,7 +27,7 @@ type AdminWaitingRoomUseCase struct {
 	hub   IHub
 }
 
-var _ IAdminWaitingRoomUseCase = (*AdminWaitingRoomUseCase)(nil)
+var _ UseCaseInterface = (*AdminWaitingRoomUseCase)(nil)
 
 func New(rooms r.Rooms, hub IHub) *AdminWaitingRoomUseCase {
 	return &AdminWaitingRoomUseCase{rooms, hub}
@@ -37,9 +40,9 @@ func (uc *AdminWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 		return fmt.Errorf("room does not exist")
 	}
 
-	ch, index := uc.hub.Subscribe(roomId)
+	ch := uc.hub.Subscribe(roomId, "admin")
 	defer func() {
-		_ = uc.hub.Unsubscribe(roomId, index)
+		_ = uc.hub.Unsubscribe(roomId, "admin")
 	}()
 
 	connectedMessage := fmt.Sprintf(`{"MessageType":"Connection","Message":"Connected to the room %s"}`, roomId)
@@ -50,14 +53,15 @@ func (uc *AdminWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 	}
 	flusher.Flush()
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case message, ok := <-ch:
 			if !ok {
-				logger.ErrorContext(ctx, fmt.Sprintf("Could not receive the message in the room, %s", roomId))
+				logger.ErrorContext(ctx, fmt.Sprintf("AdminWaitingRoomUseCase.ConnectAndListen: Could not receive the message in the room, %s", roomId))
+				return nil
 			}
 
 			msg := string(message)

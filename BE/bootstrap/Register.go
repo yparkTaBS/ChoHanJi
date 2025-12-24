@@ -7,12 +7,14 @@ import (
 	"ChoHanJi/drivers/http/handlers/CreateCharacter"
 	"ChoHanJi/drivers/http/handlers/CreateRoom"
 	"ChoHanJi/drivers/http/handlers/PlayerRoom"
+	"ChoHanJi/drivers/http/handlers/StartGame"
 	"ChoHanJi/drivers/http/handlers/WaitingRoom"
 	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
 	"ChoHanJi/useCases/CharacterFactory"
 	"ChoHanJi/useCases/PlayerWaitingRoomUseCase"
 	"ChoHanJi/useCases/RoomFactory"
 	"ChoHanJi/useCases/RoomFactory/ports"
+	"ChoHanJi/useCases/StartGameUseCase"
 	"context"
 	"fmt"
 	"net/http"
@@ -92,13 +94,22 @@ func RegisterDrivers(ctx context.Context, builder *cb.ContainerBuilder) error {
 		return err
 	}
 
+	if err := builder.Register(
+		StartGame.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTGameStart)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	if err := builder.Register(
 		RoomFactory.NewRoomFactory,
-		o.As[ports.IRoomFactory],
+		o.As[ports.UseCaseInterface],
 		o.AsSingleton,
 	); err != nil {
 		return err
@@ -107,7 +118,7 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	if err := builder.Register(
 		AdminWaitingRoomUseCase.New,
 		o.AsSingleton,
-		o.As[AdminWaitingRoomUseCase.IAdminWaitingRoomUseCase],
+		o.As[AdminWaitingRoomUseCase.UseCaseInterface],
 	); err != nil {
 		return err
 	}
@@ -115,7 +126,7 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	if err := builder.Register(
 		CharacterFactory.New,
 		o.AsSingleton,
-		o.As[CharacterFactory.ICharacterFactory],
+		o.As[CharacterFactory.UseCaseInterface],
 	); err != nil {
 		return err
 	}
@@ -123,7 +134,15 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	if err := builder.Register(
 		PlayerWaitingRoomUseCase.New,
 		o.AsSingleton,
-		o.As[PlayerWaitingRoomUseCase.IPlayerWaitingRoomUseCase],
+		o.As[PlayerWaitingRoomUseCase.UseCaseInterface],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		StartGameUseCase.New,
+		o.AsSingleton,
+		o.As[StartGameUseCase.UseCaseInterface],
 	); err != nil {
 		return err
 	}
@@ -146,15 +165,8 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		SSEHub.New,
 		o.AsSingleton,
 		o.As[AdminWaitingRoomUseCase.IHub],
-		o.As[PlayerWaitingRoomUseCase.IRoomHub],
-	); err != nil {
-		return err
-	}
-
-	if err := builder.Register(
-		SSEHub.New,
-		o.AsSingleton,
-		o.As[PlayerWaitingRoomUseCase.IPlayerHub],
+		o.As[PlayerWaitingRoomUseCase.IHub],
+		o.As[StartGameUseCase.IHub],
 	); err != nil {
 		return err
 	}

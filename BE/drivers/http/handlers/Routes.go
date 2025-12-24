@@ -7,4 +7,5 @@ var (
 	POSTCharacter  RouteToken = "/api/character"
 	GETPlayerEvent RouteToken = "/api/player/event"
 	GETRoomAdmin   RouteToken = "/api/waiting/room/admin"
+	POSTGameStart  RouteToken = "/api/game/start"
 )

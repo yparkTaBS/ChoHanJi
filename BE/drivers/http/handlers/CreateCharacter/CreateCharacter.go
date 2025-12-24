@@ -13,11 +13,11 @@ import (
 )
 
 type CreateCharacter struct {
-	uc        CharacterFactory.ICharacterFactory
+	uc        CharacterFactory.UseCaseInterface
 	validator *validator.Validate
 }
 
-func New(uc CharacterFactory.ICharacterFactory, validator *validator.Validate) *CreateCharacter {
+func New(uc CharacterFactory.UseCaseInterface, validator *validator.Validate) *CreateCharacter {
 	return &CreateCharacter{uc, validator}
 }
 

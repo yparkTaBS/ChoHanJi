@@ -9,12 +9,12 @@ import (
 )
 
 type AdminWaitingRoom struct {
-	uc AdminWaitingRoomUseCase.IAdminWaitingRoomUseCase
+	uc AdminWaitingRoomUseCase.UseCaseInterface
 }
 
 var _ http.Handler = (*AdminWaitingRoom)(nil)
 
-func New(useCase AdminWaitingRoomUseCase.IAdminWaitingRoomUseCase) *AdminWaitingRoom {
+func New(useCase AdminWaitingRoomUseCase.UseCaseInterface) *AdminWaitingRoom {
 	return &AdminWaitingRoom{useCase}
 }
 

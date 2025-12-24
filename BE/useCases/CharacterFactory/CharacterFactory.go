@@ -6,7 +6,7 @@ import (
 	"errors"
 )
 
-type ICharacterFactory interface {
+type UseCaseInterface interface {
 	CreateCharacter(string, string, string, int) (string, error)
 }
 
@@ -14,7 +14,7 @@ type CharacterFactory struct {
 	rooms r.Rooms
 }
 
-var _ ICharacterFactory = (*CharacterFactory)(nil)
+var _ UseCaseInterface = (*CharacterFactory)(nil)
 
 func New(rooms r.Rooms) *CharacterFactory {
 	return &CharacterFactory{rooms}

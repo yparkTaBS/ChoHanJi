@@ -12,7 +12,7 @@ type RoomFactory struct {
 	rooms r.Rooms
 }
 
-var _ ports.IRoomFactory = (*RoomFactory)(nil)
+var _ ports.UseCaseInterface = (*RoomFactory)(nil)
 
 func NewRoomFactory(rooms r.Rooms) (*RoomFactory, error) {
 	if rooms == nil {

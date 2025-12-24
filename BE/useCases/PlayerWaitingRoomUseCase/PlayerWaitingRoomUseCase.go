@@ -1,7 +1,6 @@
 package PlayerWaitingRoomUseCase
 
 import (
-	"ChoHanJi/domain/Map"
 	"ChoHanJi/domain/Player"
 	"ChoHanJi/domain/Room"
 	"ChoHanJi/driven/sse/SSEHub"
@@ -10,40 +9,34 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 )
 
-type IPlayerHub interface {
-	Subscribe(roomId string) (<-chan []byte, int)
-	Unsubscribe(roomId string, index int) error
+type IHub interface {
+	Subscribe(roomId, subscriberId string) <-chan []byte
+	Unsubscribe(roomId, subscriberId string) error
+	Publish(roomId, adminId, messageType, messageBody string) error
 }
 
-type IRoomHub interface {
-	Publish(roomId, messageType, messageBody string) error
-}
-
-var (
-	_ IPlayerHub = (*SSEHub.SSEHub)(nil)
-	_ IRoomHub   = (*SSEHub.SSEHub)(nil)
-)
+var _ IHub = (*SSEHub.SSEHub)(nil)
 
 var ErrNotFound error = errors.New("not found")
 
 type PlayerWaitingRoomUseCase struct {
-	rooms     Room.Rooms
-	playerHub IPlayerHub
-	roomHub   IRoomHub
+	rooms   Room.Rooms
+	roomHub IHub
 }
 
-type IPlayerWaitingRoomUseCase interface {
+type UseCaseInterface interface {
 	ConnectAndListen(ctx context.Context, w io.Writer, roomId string, playerId string, flusher http.Flusher) error
 }
 
-var _ IPlayerWaitingRoomUseCase = (*PlayerWaitingRoomUseCase)(nil)
+var _ UseCaseInterface = (*PlayerWaitingRoomUseCase)(nil)
 
-func New(rooms Room.Rooms, playerHub IPlayerHub, roomHub IRoomHub) (*PlayerWaitingRoomUseCase, error) {
-	return &PlayerWaitingRoomUseCase{rooms, playerHub, roomHub}, nil
+func New(rooms Room.Rooms, roomHub IHub) (*PlayerWaitingRoomUseCase, error) {
+	return &PlayerWaitingRoomUseCase{rooms, roomHub}, nil
 }
 
 func (p *PlayerWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Writer, roomId string, playerId string, flusher http.Flusher) error {
@@ -59,11 +52,11 @@ func (p *PlayerWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 		return fmt.Errorf("PlayerWaitingRoomUseCase.ConnectAndListen: %s %w", "player", ErrNotFound)
 	}
 
-	Map.PlacePlayer(*room.Map, player)
+	room.Map.PlacePlayer(player)
 
-	ch, index := p.playerHub.Subscribe(roomId)
+	ch := p.roomHub.Subscribe(roomId, playerId)
 	defer func() {
-		_ = p.playerHub.Unsubscribe(roomId, index)
+		_ = p.roomHub.Unsubscribe(roomId, playerId)
 	}()
 
 	connectedMessage := fmt.Sprintf(`{"MessageType":"Connection","Message":"Connected to the room %s"}`, roomId)
@@ -74,8 +67,8 @@ func (p *PlayerWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 	}
 	flusher.Flush()
 
-	if err := p.roomHub.Publish(roomId, "PlayerConnected", fmt.Sprintf(`{"id":"%s","name":"%s"}`, playerId, player.Name)); err != nil {
-		logger.ErrorContext(ctx, "Could not announce player connected message")
+	if err := p.roomHub.Publish(roomId, "admin", "PlayerConnected", fmt.Sprintf(`{"id":"%s","name":"%s"}`, playerId, player.Name)); err != nil {
+		logger.ErrorContext(ctx, "PlayerWaitingRoomUseCase.ConnectAndListen: Could not announce player connected message", slog.Any("Error", err))
 		return fmt.Errorf("could not publish PlayerConnected message. PlayerId: %s", player.Id)
 	}
 
@@ -86,7 +79,8 @@ func (p *PlayerWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 		select {
 		case message, ok := <-ch:
 			if !ok {
-				logger.ErrorContext(ctx, fmt.Sprintf("Could not receive the message in the room, %s", roomId))
+				logger.ErrorContext(ctx, fmt.Sprintf("PlayerWaitingRoomUseCase.ConnectAndListen: Could not receive the message in the room, %s", roomId))
+				return nil
 			}
 
 			msg := string(message)

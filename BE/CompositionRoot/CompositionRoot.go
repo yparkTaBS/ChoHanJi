@@ -32,6 +32,7 @@ func CreateEndPoints(container gi.Container, config *PilgrimCraftConfig.PilgrimC
 	r.Mount("/api/character", RegisterPOSTPlayer(container, handlers.POSTCharacter, origin))
 	r.Mount(string(handlers.GETPlayerEvent), RegisterGETPlayerEvent(container, string(handlers.GETPlayerEvent), origin))
 	r.Mount("/api/room/waiting/admin", RegisterAdminWaitingRoom(container, handlers.GETRoomAdmin, origin))
+	r.Mount(string(handlers.POSTGameStart), RegisterPOSTGameStart(container, handlers.POSTGameStart, origin))
 
 	return r, nil
 }
@@ -98,6 +99,42 @@ func RegisterPOSTPlayer(container gi.Container, route handlers.RouteToken, origi
 		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
 		if err != nil {
 			logger.ErrorContext(context, "POST /api/character: Could not resolve handler", slog.Any("Error", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+
+	return r
+}
+
+func RegisterPOSTGameStart(container gi.Container, route handlers.RouteToken, origin string) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(JobNameAttacher.New(fmt.Sprintf("POST %s", route)))
+	r.Use(LoggerAttacher.New())
+	r.Use(GenericPanicCatcher.New())
+
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+
+		context, cancel := ctx.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+
+		r = r.WithContext(context)
+
+		logger, err := Logging.RetrieveLogger(context)
+		if err != nil {
+			slog.ErrorContext(context, "POST /api/game/start: Could not retrieve logger from the context")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
+		if err != nil {
+			logger.ErrorContext(context, "POST /api/game/start: Could not resolve handler", slog.Any("Error", err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

@@ -3,6 +3,8 @@
 import { use, useEffect, useRef, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { Message, TypedMessage } from "@/model/SSEMessage";
 
 type row = [string, string, string, string, string];
 type grid = [row, row, row, row, row];
@@ -111,6 +113,8 @@ export default function CharacterPage({
   // "Move not allowed" popup (when player tries to move into 4,4)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
 
+  const router = useRouter()
+
   // NEW: directional attack availability
   function canAttackDir(dir: Exclude<Direction, null>) {
     // Deduction: "enemy is occupying that block" means the adjacent tile in that direction equals enemyPos
@@ -118,6 +122,41 @@ export default function CharacterPage({
     const target = { r: pos.r + dr, c: pos.c + dc };
     return target.r === enemyPos.r && target.c === enemyPos.c;
   }
+
+  useEffect(() => {
+    const es = new EventSource(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}api/room/waiting/admin?roomId=${roomId}`
+    );
+    esRef.current = es;
+
+    es.onopen = () => {
+      console.log("SSE connected");
+    };
+
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as { MessageType: string; Message?: string };
+
+        const baseMessage = new Message(data.MessageType);
+
+        if (baseMessage.MessageType === "PlayerConnected") {
+        }
+      } catch (e) {
+        console.log(e);
+        return;
+      }
+    };
+
+    es.onerror = (err) => {
+      console.error("SSE error", err);
+      router.back();
+    };
+
+    return () => {
+      es.close();
+      esRef.current = null;
+    };
+  }, [roomId, router]);
 
   // NEW: if we are in attack mode and the selected direction no longer points at the enemy, clear it
   useEffect(() => {

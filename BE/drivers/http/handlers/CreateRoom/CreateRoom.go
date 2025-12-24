@@ -13,13 +13,13 @@ import (
 )
 
 type CreateRoom struct {
-	roomFactory RoomFactoryPorts.IRoomFactory
+	roomFactory RoomFactoryPorts.UseCaseInterface
 	validator   *validator.Validate
 }
 
 var _ http.Handler = (*CreateRoom)(nil)
 
-func New(roomFactory RoomFactoryPorts.IRoomFactory, validator *validator.Validate) (*CreateRoom, error) {
+func New(roomFactory RoomFactoryPorts.UseCaseInterface, validator *validator.Validate) (*CreateRoom, error) {
 	return &CreateRoom{roomFactory, validator}, nil
 }
 

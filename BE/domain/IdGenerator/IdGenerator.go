@@ -15,5 +15,5 @@ func NewId() (string, error) {
 	s := mapUUID.String()
 	s = strings.ReplaceAll(s, "-", "")
 
-	return s[len(s)-12:], nil
+	return s[len(s)-5:], nil
 }

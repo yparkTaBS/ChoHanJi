@@ -9,10 +9,10 @@ import (
 )
 
 type PlayerRoom struct {
-	uc PlayerWaitingRoomUseCase.IPlayerWaitingRoomUseCase
+	uc PlayerWaitingRoomUseCase.UseCaseInterface
 }
 
-func New(uc PlayerWaitingRoomUseCase.IPlayerWaitingRoomUseCase) *PlayerRoom {
+func New(uc PlayerWaitingRoomUseCase.UseCaseInterface) *PlayerRoom {
 	return &PlayerRoom{uc}
 }
 
