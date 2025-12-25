@@ -1,4 +1,7 @@
 import Tile, { Flag, Teams } from "@/model/Tile";
+import Change from "./Change";
+import Player from "@/model/Player";
+import Item from "@/model/Item";
 
 export default class Engine {
   private tiles: Tile[][];
@@ -8,13 +11,33 @@ export default class Engine {
     for (let y = 0; y < height; y++) {
       let row: Tile[] = [];
       for (let x = 0; x < width; x++) {
-        row.push(new Tile(x, y, Flag.EMPTY, [], []))
+        row.push(new Tile(x, y, Flag.EMPTY, {}, {}))
       }
       this.tiles.push(row);
     }
   }
 
-  public Update() { }
+  public Update(changes: Change[]) {
+    for (const change of changes) {
+      const prevTile = this.tiles[change.PrevY][change.PrevX];
+      if (change.X === -1 && change.Y === -1) {
+        const item = change.Object as Item;
+        delete prevTile.Items[item.Id];
+        continue;
+      }
+
+      const tile = this.tiles[change.Y][change.X]
+      if (change.ObjectType === "Player") {
+        const player = change.Object as Player;
+        delete prevTile.Players[player.Id];
+        tile.Players[player.Id] = player;
+      } else if (change.ObjectType === "Item") {
+        const item = change.Object as Item;
+        delete prevTile.Items[item.Id];
+        tile.Items[item.Id] = item;
+      }
+    }
+  }
 
   public RenderAll(): [string, string, Flag, Teams][][] {
     return this.RenderParts(0, 0, this.tiles.length, this.tiles[0].length, true)
@@ -40,21 +63,18 @@ export default class Engine {
           continue;
         }
 
-        const players = this.tiles[rY][rX].Players.map(p => {
+        const players = Object.entries(this.tiles[rY][rX].Players).map(([_, p]) => {
           if (!condensed) {
             return p.Name
           }
           return p.Name[0]
         }).join(",");
-        const items = Object.entries(this.tiles[rY][rX].Items.reduce<Record<string, number>>((acc, s) => {
-          acc[s] = (acc[s] ?? 0) + 1;
+        const counts = Object.values(this.tiles[rY][rX].Items).reduce<Record<string, number>>((acc, item) => {
+          const name = condensed ? item.Name[0] : item.Name;
+          acc[name] = (acc[name] ?? 0) + 1;
           return acc;
-        }, {})).map(([key, val]) => {
-          if (condensed) {
-            key = key[0];
-          }
-          return `${key}x${val}`;
-        }).join("|")
+        }, {});
+        const items = Object.entries(counts).map(([key, val]) => `${key}x${val}`).join("|")
         const flag = this.tiles[rY][rX].Flag;
         const teams = this.tiles[rY][rX].Teams;
 

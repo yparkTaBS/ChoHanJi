@@ -1,4 +1,5 @@
-import Player from "./player";
+import Item from "./Item";
+import Player from "./Player";
 
 export enum Flag {
   EMPTY = 0,
@@ -14,28 +15,23 @@ export enum Teams {
 }
 
 export default class Tile {
-  private x: number;
-  private y: number;
-  private _players: Player[];
-  private _items: string[];
+  private _players: Record<string, Player>;
+  private _items: Record<string, Item>;
   private _flag: Flag;
   private _team: Teams;
 
   constructor(x: number, y: number)
   constructor(x: number, y: number, flagInput: Flag)
-  constructor(x: number, y: number, flagInput?: Flag, players?: Player[])
-  constructor(x: number, y: number, flagInput?: Flag, players?: Player[], items?: string[])
-  constructor(x: number, y: number, flagInput?: Flag, players?: Player[], items?: string[], teams?: Teams) {
+  constructor(x: number, y: number, flagInput?: Flag, players?: Record<string, Player>)
+  constructor(x: number, y: number, flagInput?: Flag, players?: Record<string, Player>, items?: Record<string, Item>)
+  constructor(x: number, y: number, flagInput?: Flag, players?: Record<string, Player>, items?: Record<string, Item>, teams?: Teams) {
     if (x < 0 || y < 0) {
       throw new Error("Tile out of range")
     }
 
-    this.x = x;
-    this.y = y;
-
     this._flag = flagInput ?? Flag.EMPTY;
-    this._players = players ?? [];
-    this._items = items ?? [];
+    this._players = players ?? {};
+    this._items = items ?? {};
     this._team = teams ?? Teams.UNOCCUPIED;
   }
 
@@ -43,11 +39,11 @@ export default class Tile {
     return this._flag;
   }
 
-  get Players(): Player[] {
+  get Players(): Record<string, Player> {
     return this._players;
   }
 
-  get Items(): string[] {
+  get Items(): Record<string, Item> {
     return this._items;
   }
 
