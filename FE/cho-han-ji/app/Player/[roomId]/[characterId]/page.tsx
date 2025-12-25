@@ -3,6 +3,7 @@
 import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import Engine from "@/controller/Engine";
 import Change from "@/model/Change";
+import { useOddEvenGame } from "@/controller/Games/OddEvenGame";
 import Player, { PlayerClass } from "@/model/Player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -90,24 +91,6 @@ export default function CharacterPage({
   const { roomId, characterId } = use(params);
 
   const [pendingDir, setPendingDir] = useState<Direction>(null);
-
-  // Odd/Even game popup
-  const [showGame, setShowGame] = useState(false);
-  const [result, setResult] = useState<"Player won" | "Enemy won" | null>(null);
-  const [rolled, setRolled] = useState<number | null>(null);
-
-  // Preserve whether the PLAYER commenced an attack (needed for outcome rules)
-  const [playerCommencedAttack, setPlayerCommencedAttack] = useState(false);
-
-  // If player's initiated attack fails, queue a second (counterattack) minigame
-  const [counterMinigameQueued, setCounterMinigameQueued] = useState(false);
-
-  // Only start counter minigame AFTER player closes the popup
-  const [counterStartArmed, setCounterStartArmed] = useState(false);
-
-  const [gamePrompt, setGamePrompt] = useState<string>(
-    "Guess whether the number is odd or even."
-  );
 
   // "Move not allowed" popup (when player tries to move into 4,4)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
@@ -210,6 +193,27 @@ export default function CharacterPage({
     []
   );
 
+  const {
+    closeGamePopup,
+    gamePrompt,
+    play,
+    result,
+    rolled,
+    showGame,
+    startGame,
+  } = useOddEvenGame({
+    blocked: showMoveNotAllowed,
+    commitPositions,
+    enemyPos,
+    isAdjacent: isAdjacent4,
+    isSameTile,
+    playerPos: pos,
+  });
+
+  useEffect(() => {
+    if (showGame) setPendingDir(null);
+  }, [showGame]);
+
   // NEW: directional attack availability
   const canAttackDir = useCallback(
     (dir: Exclude<Direction, null>) => {
@@ -228,66 +232,6 @@ export default function CharacterPage({
     if (!canAttackDir(pendingDir)) setPendingDir(null);
   }, [canAttackDir, mode, pendingDir]);
 
-  const startOddEvenGame = useCallback(
-    (playerStartedAttack: boolean) => {
-      // Deduction: minigame should only be possible if enemy is adjacent or overlapping RIGHT NOW
-      if (!isAdjacent4(enemyPos, pos) && !isSameTile(enemyPos, pos)) return;
-
-      setPendingDir(null);
-      setResult(null);
-      setRolled(null);
-      setPlayerCommencedAttack(playerStartedAttack);
-
-      setCounterMinigameQueued(false);
-      setCounterStartArmed(false);
-
-      setGamePrompt("Guess whether the number is odd or even.");
-      setShowGame(true);
-    },
-    [enemyPos, pos]
-  );
-
-  function startCounterMinigame() {
-    // Deduction: counter minigame should only happen if still adjacent
-    if (!isAdjacent4(enemyPos, pos)) {
-      setCounterMinigameQueued(false);
-      setCounterStartArmed(false);
-      return;
-    }
-
-    // Deduction: counterattack is a DEFENSE scenario
-    setPlayerCommencedAttack(false);
-
-    setResult(null);
-    setRolled(null);
-
-    setGamePrompt("Counterattack! Defend by guessing odd or even.");
-    setShowGame(true);
-  }
-
-  function closeGamePopup() {
-    // Deduction: player must close popup first; counter begins only after close if queued
-    if (counterMinigameQueued) {
-      setShowGame(false);
-      setCounterStartArmed(true);
-      return;
-    }
-
-    setShowGame(false);
-    setCounterMinigameQueued(false);
-    setCounterStartArmed(false);
-  }
-
-  useEffect(() => {
-    if (!counterStartArmed) return;
-    if (showGame) return; // must be closed first
-
-    setCounterStartArmed(false);
-    setCounterMinigameQueued(false);
-    startCounterMinigame();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counterStartArmed, showGame]);
-
   function toggleMode() {
     setMode((prev) => (prev === "move" ? "attack" : "move"));
   }
@@ -304,7 +248,7 @@ export default function CharacterPage({
     // - the selected direction actually targets the enemy tile (per new directional rule)
     if (mode === "attack") {
       if (isAdjacent4(startEnemy, startPlayer) && canAttackDir(dir)) {
-        startOddEvenGame(true);
+        startGame(true);
       }
       setPendingDir(null);
       return;
@@ -312,7 +256,7 @@ export default function CharacterPage({
 
     // 2) Enemy commenced an attack => ONLY if adjacent at start-of-turn
     if (isAdjacent4(startEnemy, startPlayer)) {
-      startOddEvenGame(false);
+      startGame(false);
       setPendingDir(null);
       return;
     }
@@ -351,7 +295,7 @@ export default function CharacterPage({
 
     // Enemy attacks only if adjacent at start-of-turn
     if (isAdjacent4(startEnemy, startPlayer)) {
-      startOddEvenGame(false);
+      startGame(false);
       return;
     }
 
@@ -359,50 +303,6 @@ export default function CharacterPage({
 
     // Deduction: even if enemy overlaps, do NOT start minigame unless adjacent
     commitPositions(null, enemyNext, startPlayer, startEnemy);
-  }
-
-  useEffect(() => {
-    if (showGame || showMoveNotAllowed) return;
-    if (isSameTile(pos, enemyPos)) {
-      startOddEvenGame(false);
-    }
-  }, [enemyPos, pos, showGame, showMoveNotAllowed, startOddEvenGame]);
-
-  function playOddEven(selected: "odd" | "even") {
-    if (!showGame || result) return;
-
-    const startPlayer = { ...pos };
-    const startEnemy = { ...enemyPos };
-
-    const n = Math.floor(Math.random() * 10) + 1; // 1..10
-    setRolled(n);
-
-    const isEven = n % 2 === 0;
-    const playerCorrect =
-      (selected === "even" && isEven) || (selected === "odd" && !isEven);
-
-    const nextResult: "Player won" | "Enemy won" = playerCorrect
-      ? "Player won"
-      : "Enemy won";
-    setResult(nextResult);
-
-    /**
-     * Outcomes:
-     * - If player wins => enemy back to (4,4)
-     * - If player loses:
-     *   - if defending => player back to (0,0)
-     *   - if attacking => player does NOT go back; BUT queue counterattack minigame
-     */
-    if (nextResult === "Enemy won") {
-      if (!playerCommencedAttack) {
-        commitPositions({ r: 0, c: 0 }, null, startPlayer, startEnemy);
-      } else {
-        setCounterMinigameQueued(true);
-        setGamePrompt("Attack failed! Close this popup to face a counterattack.");
-      }
-    } else {
-      commitPositions(null, { r: 4, c: 4 }, startPlayer, startEnemy);
-    }
   }
 
   useEffect(() => {
@@ -469,14 +369,14 @@ export default function CharacterPage({
               <Button
                 className="flex-1"
                 disabled={!!result}
-                onClick={() => playOddEven("odd")}
+                onClick={() => play("odd")}
               >
                 Odd
               </Button>
               <Button
                 className="flex-1"
                 disabled={!!result}
-                onClick={() => playOddEven("even")}
+                onClick={() => play("even")}
               >
                 Even
               </Button>
