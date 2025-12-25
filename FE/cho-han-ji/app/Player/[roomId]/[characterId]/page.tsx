@@ -3,7 +3,7 @@
 import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import Engine from "@/controller/MapEngine";
 import Change from "@/controller/Change";
-import Player, { PlayerClass } from "@/model/player";
+import Player, { PlayerClass } from "@/model/Player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
