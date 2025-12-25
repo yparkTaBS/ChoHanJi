@@ -1,10 +1,12 @@
 import Tile, { Flag, Teams } from "@/model/Tile";
-import Change from "./Change";
+import Change from "../model/Change";
 import Player from "@/model/Player";
 import Item from "@/model/Item";
 
 export default class Engine {
   private tiles: Tile[][];
+  private players: Record<string, Player>;
+  private items: Record<string, Item>;
 
   constructor(width: number, height: number) {
     this.tiles = []
@@ -15,26 +17,43 @@ export default class Engine {
       }
       this.tiles.push(row);
     }
+
+    this.players = {};
+    this.items = {};
+  }
+
+  public Initialize(tiles: Tile[], players: Player[], items: Item[]) {
+    for (const t of tiles) {
+      this.tiles[t.Y][t.X].Flag = t.Flag;
+      this.tiles[t.Y][t.X].Teams = t.Teams;
+    }
+
+    for (const p of players) {
+      this.tiles[p.Y][p.X].Players[p.Id] = p;
+      this.players[p.Id] = p;
+    }
+
+    for (const i of items) {
+      this.tiles[i.Y][i.X].Items[i.Id] = i;
+      this.items[i.Id] = i;
+    }
   }
 
   public Update(changes: Change[]) {
     for (const change of changes) {
       const prevTile = this.tiles[change.PrevY][change.PrevX];
       if (change.X === -1 && change.Y === -1) {
-        const item = change.Object as Item;
-        delete prevTile.Items[item.Id];
+        delete prevTile.Items[change.Id];
         continue;
       }
 
       const tile = this.tiles[change.Y][change.X]
       if (change.ObjectType === "Player") {
-        const player = change.Object as Player;
-        delete prevTile.Players[player.Id];
-        tile.Players[player.Id] = player;
+        delete prevTile.Players[change.Id];
+        tile.Players[change.Id] = this.players[change.Id];
       } else if (change.ObjectType === "Item") {
-        const item = change.Object as Item;
-        delete prevTile.Items[item.Id];
-        tile.Items[item.Id] = item;
+        delete prevTile.Items[change.Id];
+        tile.Items[change.Id] = this.items[change.Id];
       }
     }
   }

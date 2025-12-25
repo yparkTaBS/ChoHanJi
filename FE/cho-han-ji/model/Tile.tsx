@@ -15,6 +15,8 @@ export enum Teams {
 }
 
 export default class Tile {
+  private _x: number;
+  private _y: number;
   private _players: Record<string, Player>;
   private _items: Record<string, Item>;
   private _flag: Flag;
@@ -29,14 +31,28 @@ export default class Tile {
       throw new Error("Tile out of range")
     }
 
+    this._x = x;
+    this._y = y;
     this._flag = flagInput ?? Flag.EMPTY;
     this._players = players ?? {};
     this._items = items ?? {};
     this._team = teams ?? Teams.UNOCCUPIED;
   }
 
+  get X(): number {
+    return this._x;
+  }
+
+  get Y(): number {
+    return this._y;
+  }
+
   get Flag(): Flag {
     return this._flag;
+  }
+
+  set Flag(f: Flag) {
+    this._flag = f;
   }
 
   get Players(): Record<string, Player> {
@@ -49,5 +65,9 @@ export default class Tile {
 
   get Teams(): Teams {
     return this._team;
+  }
+
+  set Teams(t) {
+    this._team = t;
   }
 }

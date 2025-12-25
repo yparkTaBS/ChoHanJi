@@ -1,8 +1,8 @@
 "use client";
 
 import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
-import Engine from "@/controller/MapEngine";
-import Change from "@/controller/Change";
+import Engine from "@/controller/Engine";
+import Change from "@/model/Change";
 import Player, { PlayerClass } from "@/model/Player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -112,16 +112,28 @@ export default function CharacterPage({
   // "Move not allowed" popup (when player tries to move into 4,4)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
 
+  const [engine, ___] = useState<Engine>(
+    new Engine(MAP_WIDTH, MAP_HEIGHT)
+  )
+
+  const [player, _] = useState<Player>(
+    new Player(0, 0, characterId, "You", PlayerClass.Fighter)
+  )
+
+  const [enemy, __] = useState<Player>(
+    new Player(4, 4, "enemy", "Enemy", PlayerClass.Rogue)
+  );
+
+  useEffect(() => {
+    engine.Initialize([], [player, enemy], []);
+  }, [engine])
+
   useEffect(() => {
     if (engineRef.current) return;
 
-    const engine = new Engine(MAP_WIDTH, MAP_HEIGHT);
-    const player = new Player(characterId, "You", PlayerClass.Fighter);
-    const enemy = new Player("enemy", "Enemy", PlayerClass.Rogue);
-
     engine.Update([
-      new Change(pos.c, pos.r, pos.c, pos.r, "Player", player),
-      new Change(enemyPos.c, enemyPos.r, enemyPos.c, enemyPos.r, "Player", enemy),
+      new Change(pos.c, pos.r, pos.c, pos.r, "Player", player.Id),
+      new Change(enemyPos.c, enemyPos.r, enemyPos.c, enemyPos.r, "Player", enemy.Id),
     ]);
 
     engineRef.current = engine;
@@ -172,7 +184,7 @@ export default function CharacterPage({
             startPlayer.c,
             startPlayer.r,
             "Player",
-            playerRef.current
+            playerRef.current.Id
           )
         );
       }
@@ -185,7 +197,7 @@ export default function CharacterPage({
             startEnemy.c,
             startEnemy.r,
             "Player",
-            enemyRef.current
+            enemyRef.current.Id
           )
         );
       }
