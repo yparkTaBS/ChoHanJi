@@ -47,6 +47,10 @@ function isAdjacent4(a: { r: number; c: number }, b: { r: number; c: number }) {
   return (dr === 1 && dc === 0) || (dr === 0 && dc === 1);
 }
 
+function isSameTile(a: { r: number; c: number }, b: { r: number; c: number }) {
+  return a.r === b.r && a.c === b.c;
+}
+
 function computeEnemyMove(enemy: { r: number; c: number }) {
   // Deduction: enemy movement is 1 random step in-bounds
   const dirs = shuffle(ENEMY_DIRS);
@@ -212,21 +216,24 @@ export default function CharacterPage({
     if (!canAttackDir(pendingDir)) setPendingDir(null);
   }, [canAttackDir, mode, pendingDir]);
 
-  function startOddEvenGame(playerStartedAttack: boolean) {
-    // Deduction: minigame should only be possible if enemy is adjacent RIGHT NOW
-    if (!isAdjacent4(enemyPos, pos)) return;
+  const startOddEvenGame = useCallback(
+    (playerStartedAttack: boolean) => {
+      // Deduction: minigame should only be possible if enemy is adjacent or overlapping RIGHT NOW
+      if (!isAdjacent4(enemyPos, pos) && !isSameTile(enemyPos, pos)) return;
 
-    setPendingDir(null);
-    setResult(null);
-    setRolled(null);
-    setPlayerCommencedAttack(playerStartedAttack);
+      setPendingDir(null);
+      setResult(null);
+      setRolled(null);
+      setPlayerCommencedAttack(playerStartedAttack);
 
-    setCounterMinigameQueued(false);
-    setCounterStartArmed(false);
+      setCounterMinigameQueued(false);
+      setCounterStartArmed(false);
 
-    setGamePrompt("Guess whether the number is odd or even.");
-    setShowGame(true);
-  }
+      setGamePrompt("Guess whether the number is odd or even.");
+      setShowGame(true);
+    },
+    [enemyPos, pos]
+  );
 
   function startCounterMinigame() {
     // Deduction: counter minigame should only happen if still adjacent
@@ -341,6 +348,13 @@ export default function CharacterPage({
     // Deduction: even if enemy overlaps, do NOT start minigame unless adjacent
     commitPositions(null, enemyNext, startPlayer, startEnemy);
   }
+
+  useEffect(() => {
+    if (showGame || showMoveNotAllowed) return;
+    if (isSameTile(pos, enemyPos)) {
+      startOddEvenGame(false);
+    }
+  }, [enemyPos, pos, showGame, showMoveNotAllowed, startOddEvenGame]);
 
   function playOddEven(selected: "odd" | "even") {
     if (!showGame || result) return;
