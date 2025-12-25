@@ -1,21 +1,17 @@
 "use client";
 
-import { use, useEffect, useRef, useState, useMemo } from "react";
+import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import Engine from "@/controller/MapEngine";
+import Change from "@/controller/Change";
+import Player, { PlayerClass } from "@/model/Player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
-import { Message, TypedMessage } from "@/model/SSEMessage";
-
-type row = [string, string, string, string, string];
-type grid = [row, row, row, row, row];
 
 type Mode = "move" | "attack";
 type Direction = "up" | "down" | "left" | "right" | null;
 
-function cloneGrid(g: grid): grid {
-  // Deduction: need new arrays so React sees changes + no shared references
-  return g.map((r) => [...r] as row) as grid;
-}
+const MAP_WIDTH = 5;
+const MAP_HEIGHT = 5;
 
 function inBounds(r: number, c: number) {
   return r >= 0 && r <= 4 && c >= 0 && c <= 4;
@@ -51,6 +47,10 @@ function isAdjacent4(a: { r: number; c: number }, b: { r: number; c: number }) {
   return (dr === 1 && dc === 0) || (dr === 0 && dc === 1);
 }
 
+function isSameTile(a: { r: number; c: number }, b: { r: number; c: number }) {
+  return a.r === b.r && a.c === b.c;
+}
+
 function computeEnemyMove(enemy: { r: number; c: number }) {
   // Deduction: enemy movement is 1 random step in-bounds
   const dirs = shuffle(ENEMY_DIRS);
@@ -69,16 +69,15 @@ export default function CharacterPage({
   params: Promise<{ roomId: string; characterId: string }>;
 }) {
   const esRef = useRef<EventSource | null>(null);
-
-  const initialField: grid = [
-    ["", "", "", "", ""],
-    ["", "", "", "", ""],
-    ["", "", "", "", ""],
-    ["", "", "", "", ""],
-    ["", "", "", "", ""],
-  ];
-
-  const [map] = useState<grid>(initialField);
+  const engineRef = useRef<Engine | null>(null);
+  const playerRef = useRef<Player | null>(null);
+  const enemyRef = useRef<Player | null>(null);
+  type RenderedGrid = ReturnType<Engine["RenderAll"]>;
+  type RenderedTile = RenderedGrid[number][number];
+  const [renderedGrid, setRenderedGrid] = useState<RenderedGrid>(() => {
+    const engine = new Engine(MAP_WIDTH, MAP_HEIGHT);
+    return engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false);
+  });
 
   const [mode, setMode] = useState<Mode>("move");
 
@@ -113,39 +112,128 @@ export default function CharacterPage({
   // "Move not allowed" popup (when player tries to move into 4,4)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
 
-  const router = useRouter()
+  useEffect(() => {
+    if (engineRef.current) return;
+
+    const engine = new Engine(MAP_WIDTH, MAP_HEIGHT);
+    const player = new Player(characterId, "You", PlayerClass.Fighter);
+    const enemy = new Player("enemy", "Enemy", PlayerClass.Rogue);
+
+    engine.Update([
+      new Change(pos.c, pos.r, pos.c, pos.r, "Player", player),
+      new Change(enemyPos.c, enemyPos.r, enemyPos.c, enemyPos.r, "Player", enemy),
+    ]);
+
+    engineRef.current = engine;
+    playerRef.current = player;
+    enemyRef.current = enemy;
+    setRenderedGrid(engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false));
+  }, [characterId, enemyPos.c, enemyPos.r, pos.c, pos.r, roomId]);
+
+  const rowMajorGrid = useMemo(() => {
+    if (!renderedGrid.length) return [];
+    const height = renderedGrid[0].length;
+    const rows: RenderedTile[][] = [];
+    for (let row = 0; row < height; row++) {
+      const rowTiles: RenderedTile[] = [];
+      for (let col = 0; col < renderedGrid.length; col++) {
+        rowTiles.push(renderedGrid[col][row]);
+      }
+      rows.push(rowTiles);
+    }
+    return rows;
+  }, [renderedGrid]);
+
+  const commitPositions = useCallback(
+    (
+      nextPlayer: { r: number; c: number } | null,
+      nextEnemy: { r: number; c: number } | null,
+      startPlayer: { r: number; c: number },
+      startEnemy: { r: number; c: number }
+    ) => {
+      if (nextPlayer) setPos(nextPlayer);
+      if (nextEnemy) setEnemyPos(nextEnemy);
+
+      if (
+        !engineRef.current ||
+        !playerRef.current ||
+        !enemyRef.current ||
+        (!nextPlayer && !nextEnemy)
+      ) {
+        return;
+      }
+
+      const changes: Change[] = [];
+      if (nextPlayer) {
+        changes.push(
+          new Change(
+            nextPlayer.c,
+            nextPlayer.r,
+            startPlayer.c,
+            startPlayer.r,
+            "Player",
+            playerRef.current
+          )
+        );
+      }
+
+      if (nextEnemy) {
+        changes.push(
+          new Change(
+            nextEnemy.c,
+            nextEnemy.r,
+            startEnemy.c,
+            startEnemy.r,
+            "Player",
+            enemyRef.current
+          )
+        );
+      }
+
+      if (!changes.length) return;
+
+      engineRef.current.Update(changes);
+      setRenderedGrid(engineRef.current.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false));
+    },
+    []
+  );
 
   // NEW: directional attack availability
-  function canAttackDir(dir: Exclude<Direction, null>) {
-    // Deduction: "enemy is occupying that block" means the adjacent tile in that direction equals enemyPos
-    const [dr, dc] = DELTAS[dir];
-    const target = { r: pos.r + dr, c: pos.c + dc };
-    return target.r === enemyPos.r && target.c === enemyPos.c;
-  }
+  const canAttackDir = useCallback(
+    (dir: Exclude<Direction, null>) => {
+      // Deduction: "enemy is occupying that block" means the adjacent tile in that direction equals enemyPos
+      const [dr, dc] = DELTAS[dir];
+      const target = { r: pos.r + dr, c: pos.c + dc };
+      return target.r === enemyPos.r && target.c === enemyPos.c;
+    },
+    [enemyPos, pos]
+  );
 
   // NEW: if we are in attack mode and the selected direction no longer points at the enemy, clear it
   useEffect(() => {
     if (mode !== "attack") return;
     if (!pendingDir) return;
     if (!canAttackDir(pendingDir)) setPendingDir(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, pos, enemyPos]);
+  }, [canAttackDir, mode, pendingDir]);
 
-  function startOddEvenGame(playerStartedAttack: boolean) {
-    // Deduction: minigame should only be possible if enemy is adjacent RIGHT NOW
-    if (!isAdjacent4(enemyPos, pos)) return;
+  const startOddEvenGame = useCallback(
+    (playerStartedAttack: boolean) => {
+      // Deduction: minigame should only be possible if enemy is adjacent or overlapping RIGHT NOW
+      if (!isAdjacent4(enemyPos, pos) && !isSameTile(enemyPos, pos)) return;
 
-    setPendingDir(null);
-    setResult(null);
-    setRolled(null);
-    setPlayerCommencedAttack(playerStartedAttack);
+      setPendingDir(null);
+      setResult(null);
+      setRolled(null);
+      setPlayerCommencedAttack(playerStartedAttack);
 
-    setCounterMinigameQueued(false);
-    setCounterStartArmed(false);
+      setCounterMinigameQueued(false);
+      setCounterStartArmed(false);
 
-    setGamePrompt("Guess whether the number is odd or even.");
-    setShowGame(true);
-  }
+      setGamePrompt("Guess whether the number is odd or even.");
+      setShowGame(true);
+    },
+    [enemyPos, pos]
+  );
 
   function startCounterMinigame() {
     // Deduction: counter minigame should only happen if still adjacent
@@ -192,13 +280,6 @@ export default function CharacterPage({
     setMode((prev) => (prev === "move" ? "attack" : "move"));
   }
 
-  const displayMap = useMemo(() => {
-    const next = cloneGrid(map);
-    next[enemyPos.r][enemyPos.c] = "X";
-    next[pos.r][pos.c] = next[pos.r][pos.c] ? `@ ${next[pos.r][pos.c]}` : "@";
-    return next;
-  }, [map, pos, enemyPos]);
-
   function submit() {
     if (!pendingDir || showGame || showMoveNotAllowed) return;
 
@@ -244,9 +325,7 @@ export default function CharacterPage({
     // 4) Compute enemy movement
     const enemyNext = computeEnemyMove(startEnemy);
 
-    // 5) Prevent minigame when enemy is not adjacent
-    setPos(playerNext);
-    setEnemyPos(enemyNext);
+    commitPositions(playerNext, enemyNext, startPlayer, startEnemy);
     setPendingDir(null);
   }
 
@@ -267,11 +346,21 @@ export default function CharacterPage({
     const enemyNext = computeEnemyMove(startEnemy);
 
     // Deduction: even if enemy overlaps, do NOT start minigame unless adjacent
-    setEnemyPos(enemyNext);
+    commitPositions(null, enemyNext, startPlayer, startEnemy);
   }
+
+  useEffect(() => {
+    if (showGame || showMoveNotAllowed) return;
+    if (isSameTile(pos, enemyPos)) {
+      startOddEvenGame(false);
+    }
+  }, [enemyPos, pos, showGame, showMoveNotAllowed, startOddEvenGame]);
 
   function playOddEven(selected: "odd" | "even") {
     if (!showGame || result) return;
+
+    const startPlayer = { ...pos };
+    const startEnemy = { ...enemyPos };
 
     const n = Math.floor(Math.random() * 10) + 1; // 1..10
     setRolled(n);
@@ -294,13 +383,13 @@ export default function CharacterPage({
      */
     if (nextResult === "Enemy won") {
       if (!playerCommencedAttack) {
-        setPos({ r: 0, c: 0 });
+        commitPositions({ r: 0, c: 0 }, null, startPlayer, startEnemy);
       } else {
         setCounterMinigameQueued(true);
         setGamePrompt("Attack failed! Close this popup to face a counterattack.");
       }
     } else {
-      setEnemyPos({ r: 4, c: 4 });
+      commitPositions(null, { r: 4, c: 4 }, startPlayer, startEnemy);
     }
   }
 
@@ -443,13 +532,18 @@ export default function CharacterPage({
 
         {/* Map */}
         <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
-          {displayMap.flatMap((r, ri) =>
-            r.map((cell, ci) => (
+          {rowMajorGrid.flatMap((row, ri) =>
+            row.map(([players, items], ci) => (
               <div
                 key={`${ri}-${ci}`}
-                className="flex h-20 w-20 items-center justify-center bg-background text-lg font-semibold border border-border -ml-px -mt-px"
+                className="flex h-20 w-20 flex-col items-center justify-center gap-1 bg-background text-lg font-semibold border border-border -ml-px -mt-px"
               >
-                {cell || ""}
+                <span className="leading-none">{players || "\u00a0"}</span>
+                {items ? (
+                  <span className="text-xs font-normal text-muted-foreground leading-none">
+                    {items}
+                  </span>
+                ) : null}
               </div>
             ))
           )}
@@ -531,4 +625,3 @@ export default function CharacterPage({
     </Card>
   );
 }
-
