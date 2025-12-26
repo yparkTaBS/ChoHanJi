@@ -7,6 +7,7 @@ import { useOddEvenGame } from "@/controller/Games/OddEvenGame";
 import Player, { PlayerClass } from "@/model/Player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Teams } from "@/model/Tile";
 
 type Mode = "move" | "attack";
 type Direction = "up" | "down" | "left" | "right" | null;
@@ -100,11 +101,11 @@ export default function CharacterPage({
   )
 
   const [player, _] = useState<Player>(
-    new Player(0, 0, characterId, "You", PlayerClass.Fighter)
+    new Player(0, 0, characterId, "You", PlayerClass.Fighter, Teams.TEAM1)
   )
 
   const [enemy, __] = useState<Player>(
-    new Player(4, 4, "enemy", "Enemy", PlayerClass.Rogue)
+    new Player(4, 4, "enemy", "Enemy", PlayerClass.Rogue, Teams.TEAM2)
   );
 
   useEffect(() => {

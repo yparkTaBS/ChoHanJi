@@ -15,6 +15,10 @@ type AdminGameStatus struct {
 
 var _ http.Handler = (*AdminGameStatus)(nil)
 
+func New(uc GameStatus.Interface) *AdminGameStatus {
+	return &AdminGameStatus{uc}
+}
+
 // ServeHTTP implements http.Handler.
 func (a *AdminGameStatus) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")

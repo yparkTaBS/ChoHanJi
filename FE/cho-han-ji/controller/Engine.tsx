@@ -25,7 +25,7 @@ export default class Engine {
   public Initialize(tiles: Tile[], players: Player[], items: Item[]) {
     for (const t of tiles) {
       this.tiles[t.Y][t.X].Flag = t.Flag;
-      this.tiles[t.Y][t.X].Teams = t.Teams;
+      this.tiles[t.Y][t.X].Team = t.Team;
     }
 
     for (const p of players) {
@@ -62,7 +62,7 @@ export default class Engine {
     return this.RenderParts(0, 0, this.tiles.length, this.tiles[0].length, true)
   }
 
-  public RenderParts(startX: number, startY: number, width: number, height: number, condensed: boolean): [string, string, Flag, Teams][][] {
+  public RenderParts(startX: number, startY: number, height: number, width: number, condensed: boolean): [string, string, Flag, Teams][][] {
     if (startX < 0 || startY < 0) {
       throw new Error("Index out of Range");
     }
@@ -72,17 +72,18 @@ export default class Engine {
     const maxY = this.tiles.length;
     const maxX = this.tiles[0].length;
 
-    for (let x = 0; x < grid.length; x++) {
-      for (let y = 0; y < grid[0].length; y++) {
+    for (let y = 0; y < grid.length; y++) {
+      for (let x = 0; x < grid[0].length; x++) {
         const rX = x + startX
         const rY = y + startY
 
         if ((rX >= maxX || rY >= maxY) || (rX < 0 || rY < 0)) {
-          grid[x][y] = ["", "", Flag.INACCESSIBLE, Teams.UNOCCUPIED];
+          grid[y][x] = ["", "", Flag.INACCESSIBLE, Teams.Neutral];
           continue;
         }
 
-        const players = Object.entries(this.tiles[rY][rX].Players).map(([_, p]) => {
+        const players = Object.entries(this.tiles[rY][rX].Players).map(entry => { return entry[1] })
+        const playerNames = players.map(p => {
           if (!condensed) {
             return p.Name
           }
@@ -95,21 +96,27 @@ export default class Engine {
         }, {});
         const items = Object.entries(counts).map(([key, val]) => `${key}x${val}`).join("|")
         const flag = this.tiles[rY][rX].Flag;
-        const teams = this.tiles[rY][rX].Teams;
+        var teams = this.tiles[rY][rX].Team;
 
-        grid[x][y] = [players, items, flag, teams]
+        if (teams === Teams.Neutral) {
+          if (players.length != 0) {
+            teams = players[0].Team
+          }
+        }
+
+        grid[y][x] = [playerNames, items, flag, teams]
       }
     }
 
     return grid;
   }
 
-  private CreateGrid(width: number, height: number): [string, string, Flag, Teams][][] {
+  private CreateGrid(height: number, width: number): [string, string, Flag, Teams][][] {
     let grid: [string, string, Flag, Teams][][] = []
-    for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) {
       var row: [string, string, Flag, Teams][] = [];
-      for (let y = 0; y < height; y++) {
-        var tile: [string, string, Flag, Teams] = ["", "", Flag.EMPTY, Teams.UNOCCUPIED]
+      for (let x = 0; x < width; x++) {
+        var tile: [string, string, Flag, Teams] = ["", "", Flag.EMPTY, Teams.Neutral]
         row.push(tile)
       }
       grid.push(row);

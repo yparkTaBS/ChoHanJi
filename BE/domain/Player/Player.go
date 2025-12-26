@@ -3,23 +3,27 @@ package Player
 import (
 	c "ChoHanJi/domain/Class"
 	"ChoHanJi/domain/IdGenerator"
-	i "ChoHanJi/domain/Item"
+	"ChoHanJi/domain/Item"
 	"errors"
 	"strings"
 )
 
 type Id string
 
-type Player struct {
+type Struct struct {
+	X          int `json:"X"`
+	Y          int `json:"Y"`
 	Id         Id
-	Name       string
-	Class      c.Class
-	Bag        i.Item
-	TeamNumber int
+	IdStr      string `json:"Id"`
+	Name       string `json:"Name"`
+	Class      c.Struct
+	ClassName  string       `json:"Class"`
+	Bag        *Item.Struct `json:"Item,omitempty"`
+	TeamNumber int          `json:"Team"`
 }
 
-func New(players map[Id]*Player, name, class string, team int) (*Player, error) {
-	var player *Player
+func New(players map[Id]*Struct, name, class string, team int) (*Struct, error) {
+	var player *Struct
 	for {
 		strId, err := IdGenerator.NewId()
 		if err != nil {
@@ -37,10 +41,12 @@ func New(players map[Id]*Player, name, class string, team int) (*Player, error) 
 			return nil, err
 		}
 
-		player = &Player{
+		player = &Struct{
 			Id:         id,
+			IdStr:      string(id),
 			Name:       name,
 			Class:      playerClass,
+			ClassName:  class,
 			TeamNumber: team,
 		}
 
@@ -50,7 +56,7 @@ func New(players map[Id]*Player, name, class string, team int) (*Player, error) 
 	return player, nil
 }
 
-func getClass(class string) (c.Class, error) {
+func getClass(class string) (c.Struct, error) {
 	switch class {
 	case "FIGHTER":
 		return c.Fighter, nil
@@ -59,6 +65,6 @@ func getClass(class string) (c.Class, error) {
 	case "THIEF":
 		return c.Rogue, nil
 	default:
-		return c.Class{}, errors.New("class not defined")
+		return c.Struct{}, errors.New("class not defined")
 	}
 }

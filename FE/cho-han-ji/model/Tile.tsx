@@ -9,18 +9,18 @@ export enum Flag {
 }
 
 export enum Teams {
-  UNOCCUPIED = 0,
+  Neutral = 0,
   TEAM1 = 1,
   TEAM2 = 2
 }
 
 export default class Tile {
-  private _x: number;
-  private _y: number;
-  private _players: Record<string, Player>;
-  private _items: Record<string, Item>;
-  private _flag: Flag;
-  private _team: Teams;
+  public X: number;
+  public Y: number;
+  public Players: Record<string, Player>;
+  public Items: Record<string, Item>;
+  public Flag: Flag;
+  public Team: Teams;
 
   constructor(x: number, y: number)
   constructor(x: number, y: number, flagInput: Flag)
@@ -31,43 +31,11 @@ export default class Tile {
       throw new Error("Tile out of range")
     }
 
-    this._x = x;
-    this._y = y;
-    this._flag = flagInput ?? Flag.EMPTY;
-    this._players = players ?? {};
-    this._items = items ?? {};
-    this._team = teams ?? Teams.UNOCCUPIED;
-  }
-
-  get X(): number {
-    return this._x;
-  }
-
-  get Y(): number {
-    return this._y;
-  }
-
-  get Flag(): Flag {
-    return this._flag;
-  }
-
-  set Flag(f: Flag) {
-    this._flag = f;
-  }
-
-  get Players(): Record<string, Player> {
-    return this._players;
-  }
-
-  get Items(): Record<string, Item> {
-    return this._items;
-  }
-
-  get Teams(): Teams {
-    return this._team;
-  }
-
-  set Teams(t) {
-    this._team = t;
+    this.X = x;
+    this.Y = y;
+    this.Flag = flagInput ?? Flag.EMPTY;
+    this.Players = players ?? {};
+    this.Items = items ?? {};
+    this.Team = teams ?? Teams.Neutral;
   }
 }

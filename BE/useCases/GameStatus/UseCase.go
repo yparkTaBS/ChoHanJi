@@ -1,10 +1,13 @@
 package GameStatus
 
 import (
+	"ChoHanJi/domain/Item"
 	"ChoHanJi/domain/Player"
 	"ChoHanJi/domain/Room"
 	"ChoHanJi/infrastructure/Logging"
+	"ChoHanJi/useCases/GameStatus/Messages"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -41,24 +44,29 @@ func (g *UseCase) ConnectAndListen(ctx context.Context, w io.Writer, roomId stri
 
 	room, found := g.rooms[Room.Id(roomId)]
 	if !found {
-		return fmt.Errorf("PlayerWaitingRoomUseCase.ConnectAndListen: %s %w", "room", ErrNotFound)
+		return fmt.Errorf("GameStatusUseCase.ConnectAndListen: %s %w", "room", ErrNotFound)
 	}
 
 	_, found = room.Players[Player.Id(playerId)]
-	if !found {
-		return fmt.Errorf("PlayerWaitingRoomUseCase.ConnectAndListen: %s %w", "player", ErrNotFound)
+	if playerId != "admin" && !found {
+		return fmt.Errorf("GameStatusUseCase.ConnectAndListen: %s %w", "player", ErrNotFound)
 	}
 
 	ch := g.roomHub.Subscribe(roomId, playerId)
 	defer func() {
-		logger.Error("PlayerWaitingRoomUseCase.ConnectAndListen: Unsubscribing...")
+		logger.Error("GameStatusUseCase.ConnectAndListen: Unsubscribing...")
 		if err := g.roomHub.Unsubscribe(roomId, playerId); err != nil {
-			logger.Error("PlayerWaitingRoomUseCase.ConnectAndListen:Error Unsubscribing", slog.Any("Error", err))
+			logger.Error("GameStatusUseCase.ConnectAndListen:Error Unsubscribing", slog.Any("Error", err))
 		}
 	}()
 
-	connectedMessage := fmt.Sprintf(`{"MessageType":"Connection","Message":"Connected to the room %s"}`, roomId)
-	_, err := fmt.Fprintf(w, "data: %s\n\n", connectedMessage)
+	msgBody, err := g.getConnectedMessage(room)
+	if err != nil {
+		return err
+	}
+
+	connectedMessage := fmt.Sprintf(`{"MessageType":"Connection","Message":%s}`, string(msgBody))
+	_, err = fmt.Fprintf(w, "data: %s\n\n", connectedMessage)
 	if err != nil {
 		logger.ErrorContext(ctx, "Could not send connected message")
 		return fmt.Errorf("could not write message, %s", connectedMessage)
@@ -72,7 +80,7 @@ func (g *UseCase) ConnectAndListen(ctx context.Context, w io.Writer, roomId stri
 		select {
 		case message, ok := <-ch:
 			if !ok {
-				logger.ErrorContext(ctx, fmt.Sprintf("PlayerWaitingRoomUseCase.ConnectAndListen: Could not receive the message in the room, %s", roomId))
+				logger.ErrorContext(ctx, fmt.Sprintf("GameStatusUseCase.ConnectAndListen: Could not receive the message in the room, %s", roomId))
 				return nil
 			}
 
@@ -92,4 +100,36 @@ func (g *UseCase) ConnectAndListen(ctx context.Context, w io.Writer, roomId stri
 			return nil
 		}
 	}
+}
+
+func (g *UseCase) getConnectedMessage(room *Room.Room) ([]byte, error) {
+	height, err := room.Map.GetMapHeight()
+	if err != nil {
+		return nil, err
+	}
+
+	width, err := room.Map.GetMapWidth()
+	if err != nil {
+		return nil, err
+	}
+
+	var players []*Player.Struct
+	for _, val := range room.Players {
+		players = append(players, val)
+	}
+
+	var items []*Item.Struct
+	for _, val := range room.Items {
+		items = append(items, val)
+	}
+
+	message := Messages.ConnectedMessage{
+		MapHeight: height,
+		MapWidth:  width,
+		Tiles:     room.Map.GetRelevantTiles(),
+		Players:   players,
+		Items:     items,
+	}
+
+	return json.Marshal(message)
 }

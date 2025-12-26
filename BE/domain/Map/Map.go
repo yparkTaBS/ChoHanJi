@@ -3,16 +3,17 @@ package Map
 import (
 	"ChoHanJi/domain/Item"
 	"ChoHanJi/domain/Player"
+	"ChoHanJi/domain/Team"
+	"ChoHanJi/domain/TileFlag"
 	"errors"
 	"math/rand"
-	"strings"
 )
 
 type Map struct {
 	tiles [][]*Tile
 }
 
-func NewMap(width, height int, itemList string) (*Map, error) {
+func NewMap(width, height int, items []*Item.Struct) (*Map, error) {
 	if width <= 0 || height <= 0 {
 		return nil, errors.New("width and height must be > 0")
 	}
@@ -25,36 +26,42 @@ func NewMap(width, height int, itemList string) (*Map, error) {
 	for x := range width {
 		fieldMap.tiles[x] = make([]*Tile, height)
 		for y := range height {
-			fieldMap.tiles[x][y] = NewTile()
+			fieldMap.tiles[x][y] = NewTile(x, y, 0)
 		}
 	}
 
-	// Add items if provided
-	itemList = strings.TrimSpace(itemList)
-	if itemList != "" {
-		items := strings.SplitSeq(itemList, ",")
-		for itemName := range items {
-			itemName = strings.TrimSpace(itemName)
-			if itemName == "" {
-				continue
-			}
+	// Set the Flags
+	fieldMap.tiles[1][1].Flag = TileFlag.TREASURE_CHEST
+	fieldMap.tiles[1][1].Team = Team.Team1
+	fieldMap.tiles[width-2][1].Flag = TileFlag.SPAWN
+	fieldMap.tiles[width-2][1].Team = Team.Team1
+	fieldMap.tiles[width-2][height-2].Flag = TileFlag.TREASURE_CHEST
+	fieldMap.tiles[width-2][height-2].Team = Team.Team2
+	fieldMap.tiles[1][height-2].Flag = TileFlag.SPAWN
+	fieldMap.tiles[1][height-2].Team = Team.Team2
 
+	// Add items if provided
+	for _, item := range items {
+		for {
 			x := rand.Intn(width)
 			y := rand.Intn(height)
 
-			item, err := Item.New(itemName)
-			if err != nil {
-				return nil, err
+			if fieldMap.tiles[x][y].Flag != TileFlag.EMPTY {
+				continue
 			}
 
+			item.X = x
+			item.Y = y
+
 			fieldMap.tiles[x][y].AddItem(item)
+			break
 		}
 	}
 
 	return fieldMap, nil
 }
 
-func (m *Map) PlacePlayer(player *Player.Player) error {
+func (m *Map) PlacePlayer(player *Player.Struct) error {
 	if m == nil || !m.IsInitialized() {
 		return errors.New("map not initialized")
 	}
@@ -111,4 +118,17 @@ func (m *Map) GetTile(x, y int) (*Tile, error) {
 		return nil, errors.New("y out of bounds")
 	}
 	return m.tiles[x][y], nil
+}
+
+func (m *Map) GetRelevantTiles() []*Tile {
+	var tiles []*Tile
+	for row := range m.tiles {
+		for column := range m.tiles[row] {
+			tile := m.tiles[row][column]
+			if tile.IsRelevant() {
+				tiles = append(tiles, tile)
+			}
+		}
+	}
+	return tiles
 }

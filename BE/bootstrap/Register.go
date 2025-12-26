@@ -6,6 +6,7 @@ import (
 	"ChoHanJi/drivers/http/handlers"
 	"ChoHanJi/drivers/http/handlers/CreateCharacter"
 	"ChoHanJi/drivers/http/handlers/CreateRoom"
+	AdminGameStatus "ChoHanJi/drivers/http/handlers/GameStatus/Admin"
 	"ChoHanJi/drivers/http/handlers/PlayerRoom"
 	"ChoHanJi/drivers/http/handlers/StartGame"
 	"ChoHanJi/drivers/http/handlers/WaitingRoom"
@@ -99,6 +100,15 @@ func RegisterDrivers(ctx context.Context, builder *cb.ContainerBuilder) error {
 		StartGame.New,
 		o.AsSingleton,
 		o.Named(string(handlers.POSTGameStart)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		AdminGameStatus.New,
+		o.AsSingleton,
+		o.Named(string(handlers.GETAdminGameStatus)),
 		o.As[http.Handler],
 	); err != nil {
 		return err
