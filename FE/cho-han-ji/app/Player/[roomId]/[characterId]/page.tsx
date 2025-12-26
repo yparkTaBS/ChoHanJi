@@ -14,10 +14,6 @@ type Direction = "up" | "down" | "left" | "right" | null;
 
 const MAP_WIDTH = 5;
 const MAP_HEIGHT = 5;
-const TILE_SIZE_PX = 80; // matches Tailwind h-20/w-20 (5rem)
-const OVERLAY_SIZE_PX = TILE_SIZE_PX * 3;
-const MAP_PIXEL_WIDTH = MAP_WIDTH * TILE_SIZE_PX;
-const MAP_PIXEL_HEIGHT = MAP_HEIGHT * TILE_SIZE_PX;
 
 function inBounds(r: number, c: number) {
   return r >= 0 && r <= 4 && c >= 0 && c <= 4;
@@ -317,16 +313,10 @@ export default function CharacterPage({
     showMoveNotAllowed ||
     (mode === "attack" && !canAttackDir(dir));
 
-  const overlayPosition = useMemo(() => {
-    const left = Math.min(
-      Math.max(0, pos.c * TILE_SIZE_PX - TILE_SIZE_PX),
-      MAP_PIXEL_WIDTH - OVERLAY_SIZE_PX
-    );
-    const top = Math.min(
-      Math.max(0, pos.r * TILE_SIZE_PX - TILE_SIZE_PX),
-      MAP_PIXEL_HEIGHT - OVERLAY_SIZE_PX
-    );
-    return { left, top };
+  const overlayGridStart = useMemo(() => {
+    const colStart = Math.min(Math.max(1, pos.c), MAP_WIDTH - 2);
+    const rowStart = Math.min(Math.max(1, pos.r), MAP_HEIGHT - 2);
+    return { colStart, rowStart };
   }, [pos.c, pos.r]);
 
   return (
@@ -468,16 +458,16 @@ export default function CharacterPage({
                 )}
               </div>
 
-              <div
-                className="absolute rounded-2xl transition-all"
-                style={{
-                  width: `${OVERLAY_SIZE_PX}px`,
-                  height: `${OVERLAY_SIZE_PX}px`,
-                  left: `${overlayPosition.left}px`,
-                  top: `${overlayPosition.top}px`,
-                }}
-              >
-                <div className="grid grid-cols-3 grid-rows-3 gap-2 p-3">
+              <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5">
+                <div
+                  className="pointer-events-auto grid grid-cols-3 grid-rows-3 gap-2 p-3"
+                  style={{
+                    gridColumnStart: overlayGridStart.colStart,
+                    gridColumnEnd: overlayGridStart.colStart + 3,
+                    gridRowStart: overlayGridStart.rowStart,
+                    gridRowEnd: overlayGridStart.rowStart + 3,
+                  }}
+                >
                   <div />
                   {disableDir("up") ? (
                     <div />
