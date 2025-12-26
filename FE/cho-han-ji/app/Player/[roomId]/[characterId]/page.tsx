@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { use, useEffect, useRef, useState, useCallback } from "react";
 import Engine from "@/controller/Engine";
 import Change from "@/model/Change";
 import { useOddEvenGame } from "@/controller/Games/OddEvenGame";
@@ -75,7 +75,6 @@ export default function CharacterPage({
   const playerRef = useRef<Player | null>(null);
   const enemyRef = useRef<Player | null>(null);
   type RenderedGrid = ReturnType<Engine["RenderAll"]>;
-  type RenderedTile = RenderedGrid[number][number];
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid>(() => {
     const engine = new Engine(MAP_WIDTH, MAP_HEIGHT);
     return engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false);
@@ -90,8 +89,6 @@ export default function CharacterPage({
   });
 
   const { roomId, characterId } = use(params);
-
-  const [pendingDir, setPendingDir] = useState<Direction>(null);
 
   // "Move not allowed" popup (when player tries to move into 4,4)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
@@ -125,20 +122,6 @@ export default function CharacterPage({
     enemyRef.current = enemy;
     setRenderedGrid(engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false));
   }, [characterId, enemyPos.c, enemyPos.r, pos.c, pos.r, roomId]);
-
-  const rowMajorGrid = useMemo(() => {
-    if (!renderedGrid.length) return [];
-    const height = renderedGrid[0].length;
-    const rows: RenderedTile[][] = [];
-    for (let row = 0; row < height; row++) {
-      const rowTiles: RenderedTile[] = [];
-      for (let col = 0; col < renderedGrid.length; col++) {
-        rowTiles.push(renderedGrid[col][row]);
-      }
-      rows.push(rowTiles);
-    }
-    return rows;
-  }, [renderedGrid]);
 
   const commitPositions = useCallback(
     (
@@ -211,10 +194,6 @@ export default function CharacterPage({
     playerPos: pos,
   });
 
-  useEffect(() => {
-    if (showGame) setPendingDir(null);
-  }, [showGame]);
-
   // NEW: directional attack availability
   const canAttackDir = useCallback(
     (dir: Exclude<Direction, null>) => {
@@ -226,21 +205,12 @@ export default function CharacterPage({
     [enemyPos, pos]
   );
 
-  // NEW: if we are in attack mode and the selected direction no longer points at the enemy, clear it
-  useEffect(() => {
-    if (mode !== "attack") return;
-    if (!pendingDir) return;
-    if (!canAttackDir(pendingDir)) setPendingDir(null);
-  }, [canAttackDir, mode, pendingDir]);
-
   function toggleMode() {
     setMode((prev) => (prev === "move" ? "attack" : "move"));
   }
 
-  function submit() {
-    if (!pendingDir || showGame || showMoveNotAllowed) return;
-
-    const dir = pendingDir;
+  function submit(dir: Exclude<Direction, null>) {
+    if (showGame || showMoveNotAllowed) return;
     const startPlayer = { ...pos };
     const startEnemy = { ...enemyPos };
 
@@ -251,14 +221,12 @@ export default function CharacterPage({
       if (isAdjacent4(startEnemy, startPlayer) && canAttackDir(dir)) {
         startGame(true);
       }
-      setPendingDir(null);
       return;
     }
 
     // 2) Enemy commenced an attack => ONLY if adjacent at start-of-turn
     if (isAdjacent4(startEnemy, startPlayer)) {
       startGame(false);
-      setPendingDir(null);
       return;
     }
 
@@ -272,7 +240,6 @@ export default function CharacterPage({
       if (inBounds(nr, nc)) {
         if (nr === 4 && nc === 4) {
           setShowMoveNotAllowed(true);
-          setPendingDir(null);
           return;
         }
         playerNext = { r: nr, c: nc };
@@ -291,8 +258,6 @@ export default function CharacterPage({
 
     const startPlayer = { ...pos };
     const startEnemy = { ...enemyPos };
-
-    setPendingDir(null);
 
     // Enemy attacks only if adjacent at start-of-turn
     if (isAdjacent4(startEnemy, startPlayer)) {
@@ -327,6 +292,16 @@ export default function CharacterPage({
     showGame ||
     showMoveNotAllowed ||
     (mode === "attack" && !canAttackDir(dir));
+
+  const showDir = useCallback(
+    (dir: Exclude<Direction, null>) => {
+      const [dr, dc] = DELTAS[dir];
+      const nr = pos.r + dr;
+      const nc = pos.c + dc;
+      return inBounds(nr, nc) && !disableDir(dir);
+    },
+    [pos.c, pos.r, disableDir]
+  );
 
   return (
     <Card className="w-fit">
@@ -404,19 +379,19 @@ export default function CharacterPage({
 
       <CardContent className="space-y-6">
         {/* Tutorial (kept) */}
-        <Card className="border-muted">
-          <CardHeader>
-            <CardTitle className="text-base">Tutorial</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              <strong>Move Mode:</strong> Select a direction and press{" "}
-              <strong>Move</strong>.
-            </p>
-            <p>
-              <strong>Attack Mode:</strong> Select a direction and press{" "}
-              <strong>Attack</strong>.
-            </p>
+            <Card className="border-muted">
+              <CardHeader>
+                <CardTitle className="text-base">Tutorial</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  <strong>Move Mode:</strong> Tap the arrows that appear around your
+                  token on the map to move immediately.
+                </p>
+                <p>
+                  <strong>Attack Mode:</strong> Tap an adjacent arrow next to an enemy
+                  to attack.
+                </p>
             <p>
               <strong>Order of Actions:</strong> Attack move will always happen
               first, followed by the normal movement, bonus movement, bonus
@@ -443,67 +418,150 @@ export default function CharacterPage({
           </CardContent>
         </Card>
 
-        {/* Map */}
-        <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
-          {rowMajorGrid.flatMap((row, ri) =>
-            row.map(([players, items], ci) => (
-              <div
-                key={`${ri}-${ci}`}
-                className="flex h-20 w-20 flex-col items-center justify-center gap-1 bg-background text-lg font-semibold border border-border -ml-px -mt-px"
-              >
-                <span className="leading-none">{players || "\u00a0"}</span>
-                {items ? (
-                  <span className="text-xs font-normal text-muted-foreground leading-none">
-                    {items}
-                  </span>
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="space-y-3">
+            {/* Map with anchored controls */}
+            <div className="relative w-fit">
+              <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
+                {renderedGrid.map((row, ri) =>
+                  row.map(([players, items], ci) => (
+                    <div
+                      key={`${ri}-${ci}`}
+                      className="flex h-20 w-20 flex-col items-center justify-center gap-1 bg-background text-lg font-semibold border border-border -ml-px -mt-px"
+                    >
+                      <span className="leading-none">
+                        {pos.r === ri && pos.c === ci ? "\u00a0" : players || "\u00a0"}
+                      </span>
+                      {items ? (
+                        <span className="text-xs font-normal text-muted-foreground leading-none">
+                          {items}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5 place-items-center">
+                {/* Up */}
+                {showDir("up") ? (
+                <div
+                    className="pointer-events-auto flex items-center justify-center p-1"
+                    style={{
+                      gridColumnStart: pos.c + 1,
+                      gridColumnEnd: pos.c + 2,
+                      gridRowStart: pos.r,
+                    gridRowEnd: pos.r + 1,
+                  }}
+                >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => submit("up")}
+                      aria-label="Move up"
+                    >
+                      ↑
+                    </Button>
+                  </div>
+                ) : null}
+
+                {/* Left */}
+                {showDir("left") ? (
+                  <div
+                    className="pointer-events-auto flex items-center justify-center p-1"
+                    style={{
+                      gridColumnStart: pos.c,
+                      gridColumnEnd: pos.c + 1,
+                      gridRowStart: pos.r + 1,
+                      gridRowEnd: pos.r + 2,
+                    }}
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => submit("left")}
+                      aria-label="Move left"
+                    >
+                      ←
+                    </Button>
+                  </div>
+                ) : null}
+
+                {/* Center marker */}
+                <div
+                  className="pointer-events-none flex items-center justify-center p-1"
+                  style={{
+                    gridColumnStart: pos.c + 1,
+                    gridColumnEnd: pos.c + 2,
+                    gridRowStart: pos.r + 1,
+                    gridRowEnd: pos.r + 2,
+                  }}
+                >
+                  <div className="flex h-full items-center justify-center rounded-md border border-dashed text-xs font-medium text-muted-foreground">
+                    You
+                  </div>
+                </div>
+
+                {/* Right */}
+                {showDir("right") ? (
+                  <div
+                    className="pointer-events-auto flex items-center justify-center p-1"
+                    style={{
+                      gridColumnStart: pos.c + 2,
+                      gridColumnEnd: pos.c + 3,
+                      gridRowStart: pos.r + 1,
+                      gridRowEnd: pos.r + 2,
+                    }}
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => submit("right")}
+                      aria-label="Move right"
+                    >
+                      →
+                    </Button>
+                  </div>
+                ) : null}
+
+                {/* Down */}
+                {showDir("down") ? (
+                  <div
+                    className="pointer-events-auto flex items-center justify-center p-1"
+                    style={{
+                      gridColumnStart: pos.c + 1,
+                      gridColumnEnd: pos.c + 2,
+                      gridRowStart: pos.r + 2,
+                      gridRowEnd: pos.r + 3,
+                    }}
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => submit("down")}
+                      aria-label="Move down"
+                    >
+                      ↓
+                    </Button>
+                  </div>
                 ) : null}
               </div>
-            ))
-          )}
-        </div>
+            </div>
 
-        {/* Controls */}
-        <div className="grid grid-cols-3 gap-2 place-items-center">
-          <div />
-          <Button disabled={disableDir("up")} onClick={() => setPendingDir("up")}>
-            Up
-          </Button>
-          <div />
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                Tap an arrow around your piece to act instantly.
+              </p>
+            </div>
+          </div>
 
-          <Button
-            disabled={disableDir("left")}
-            onClick={() => setPendingDir("left")}
-          >
-            Left
-          </Button>
-
-          <Button variant="secondary" onClick={toggleMode}>
-            Switch to {mode === "move" ? "Attack" : "Move"} Mode
-          </Button>
-
-          <Button
-            disabled={disableDir("right")}
-            onClick={() => setPendingDir("right")}
-          >
-            Right
-          </Button>
-
-          <div />
-          <Button
-            disabled={disableDir("down")}
-            onClick={() => setPendingDir("down")}
-          >
-            Down
-          </Button>
-          <div />
-
-          <div />
-          <div className="flex gap-2 pt-2">
-            <Button
-              disabled={!pendingDir || showGame || showMoveNotAllowed}
-              onClick={submit}
-            >
-              {mode === "move" ? "Move" : "Attack"}
+          <div className="flex min-w-[200px] flex-col gap-2">
+            <Button variant="secondary" onClick={toggleMode}>
+              Switch to {mode === "move" ? "Attack" : "Move"} Mode
             </Button>
 
             <Button
@@ -513,26 +571,7 @@ export default function CharacterPage({
             >
               Skip Turn
             </Button>
-
-            <Button
-              variant="outline"
-              disabled={!pendingDir || showGame || showMoveNotAllowed}
-              onClick={() => setPendingDir(null)}
-            >
-              Clear
-            </Button>
           </div>
-          <div />
-
-          <div />
-          {pendingDir ? (
-            <p className="text-sm text-muted-foreground">
-              Selected: <strong>{pendingDir.toUpperCase()}</strong>
-            </p>
-          ) : (
-            <div />
-          )}
-          <div />
         </div>
       </CardContent>
     </Card>

@@ -43,6 +43,8 @@ func CreateEndPoints(container gi.Container, config *PilgrimCraftConfig.PilgrimC
 	r.Mount(string(handlers.GETAdminGameStatus), RegisterEndPoint(container, GET, string(handlers.GETAdminGameStatus), origin))
 	r.Mount(string(handlers.GETPlayerGameStatus), RegisterEndPoint(container, GET, string(handlers.GETPlayerGameStatus), origin))
 
+	r.Mount(string(handlers.POSTSubmitMoves), RegisterEndPoint(container, POST, string(handlers.POSTSubmitMoves), origin))
+
 	return r, nil
 }
 
