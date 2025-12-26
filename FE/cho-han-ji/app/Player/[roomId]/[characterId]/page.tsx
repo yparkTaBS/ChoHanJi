@@ -90,8 +90,6 @@ export default function CharacterPage({
 
   const { roomId, characterId } = use(params);
 
-  const [pendingDir, setPendingDir] = useState<Direction>(null);
-
   // "Move not allowed" popup (when player tries to move into 4,4)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
 
@@ -196,10 +194,6 @@ export default function CharacterPage({
     playerPos: pos,
   });
 
-  useEffect(() => {
-    if (showGame) setPendingDir(null);
-  }, [showGame]);
-
   // NEW: directional attack availability
   const canAttackDir = useCallback(
     (dir: Exclude<Direction, null>) => {
@@ -211,21 +205,12 @@ export default function CharacterPage({
     [enemyPos, pos]
   );
 
-  // NEW: if we are in attack mode and the selected direction no longer points at the enemy, clear it
-  useEffect(() => {
-    if (mode !== "attack") return;
-    if (!pendingDir) return;
-    if (!canAttackDir(pendingDir)) setPendingDir(null);
-  }, [canAttackDir, mode, pendingDir]);
-
   function toggleMode() {
     setMode((prev) => (prev === "move" ? "attack" : "move"));
   }
 
-  function submit() {
-    if (!pendingDir || showGame || showMoveNotAllowed) return;
-
-    const dir = pendingDir;
+  function submit(dir: Exclude<Direction, null>) {
+    if (showGame || showMoveNotAllowed) return;
     const startPlayer = { ...pos };
     const startEnemy = { ...enemyPos };
 
@@ -236,14 +221,12 @@ export default function CharacterPage({
       if (isAdjacent4(startEnemy, startPlayer) && canAttackDir(dir)) {
         startGame(true);
       }
-      setPendingDir(null);
       return;
     }
 
     // 2) Enemy commenced an attack => ONLY if adjacent at start-of-turn
     if (isAdjacent4(startEnemy, startPlayer)) {
       startGame(false);
-      setPendingDir(null);
       return;
     }
 
@@ -257,7 +240,6 @@ export default function CharacterPage({
       if (inBounds(nr, nc)) {
         if (nr === 4 && nc === 4) {
           setShowMoveNotAllowed(true);
-          setPendingDir(null);
           return;
         }
         playerNext = { r: nr, c: nc };
@@ -276,8 +258,6 @@ export default function CharacterPage({
 
     const startPlayer = { ...pos };
     const startEnemy = { ...enemyPos };
-
-    setPendingDir(null);
 
     // Enemy attacks only if adjacent at start-of-turn
     if (isAdjacent4(startEnemy, startPlayer)) {
@@ -399,19 +379,19 @@ export default function CharacterPage({
 
       <CardContent className="space-y-6">
         {/* Tutorial (kept) */}
-        <Card className="border-muted">
-          <CardHeader>
-            <CardTitle className="text-base">Tutorial</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              <strong>Move Mode:</strong> Use the arrows that appear around your
-              token on the map, then press <strong>Submit</strong>.
-            </p>
-            <p>
-              <strong>Attack Mode:</strong> Pick a direction next to an enemy
-              and press <strong>Submit</strong> to attack.
-            </p>
+            <Card className="border-muted">
+              <CardHeader>
+                <CardTitle className="text-base">Tutorial</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  <strong>Move Mode:</strong> Tap the arrows that appear around your
+                  token on the map to move immediately.
+                </p>
+                <p>
+                  <strong>Attack Mode:</strong> Tap an adjacent arrow next to an enemy
+                  to attack.
+                </p>
             <p>
               <strong>Order of Actions:</strong> Attack move will always happen
               first, followed by the normal movement, bonus movement, bonus
@@ -466,24 +446,24 @@ export default function CharacterPage({
                 {/* Up */}
                 {showDir("up") ? (
                 <div
-                  className="pointer-events-auto flex items-center justify-center p-1"
-                  style={{
-                    gridColumnStart: pos.c + 1,
-                    gridColumnEnd: pos.c + 2,
-                    gridRowStart: pos.r,
+                    className="pointer-events-auto flex items-center justify-center p-1"
+                    style={{
+                      gridColumnStart: pos.c + 1,
+                      gridColumnEnd: pos.c + 2,
+                      gridRowStart: pos.r,
                     gridRowEnd: pos.r + 1,
                   }}
                 >
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="w-full bg-background/50 hover:bg-background/70"
-                    onClick={() => setPendingDir("up")}
-                    aria-label="Move up"
-                  >
-                    ↑
-                  </Button>
-                </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => submit("up")}
+                      aria-label="Move up"
+                    >
+                      ↑
+                    </Button>
+                  </div>
                 ) : null}
 
                 {/* Left */}
@@ -501,7 +481,7 @@ export default function CharacterPage({
                       size="sm"
                       variant="ghost"
                       className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => setPendingDir("left")}
+                      onClick={() => submit("left")}
                       aria-label="Move left"
                     >
                       ←
@@ -539,7 +519,7 @@ export default function CharacterPage({
                       size="sm"
                       variant="ghost"
                       className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => setPendingDir("right")}
+                      onClick={() => submit("right")}
                       aria-label="Move right"
                     >
                       →
@@ -562,7 +542,7 @@ export default function CharacterPage({
                       size="sm"
                       variant="ghost"
                       className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => setPendingDir("down")}
+                      onClick={() => submit("down")}
                       aria-label="Move down"
                     >
                       ↓
@@ -573,30 +553,9 @@ export default function CharacterPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                disabled={!pendingDir || showGame || showMoveNotAllowed}
-                onClick={submit}
-              >
-                {mode === "move" ? "Submit Move" : "Submit Attack"}
-              </Button>
-
-              <Button
-                variant="outline"
-                disabled={!pendingDir || showGame || showMoveNotAllowed}
-                onClick={() => setPendingDir(null)}
-              >
-                Clear
-              </Button>
-
-              {pendingDir ? (
-                <p className="text-sm text-muted-foreground">
-                  Selected: <strong>{pendingDir.toUpperCase()}</strong>
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Choose a direction around your piece, then press Submit.
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Tap an arrow around your piece to act instantly.
+              </p>
             </div>
           </div>
 
