@@ -479,8 +479,9 @@ export default function CharacterPage({
                     variant="ghost"
                     className="w-full bg-background/50 hover:bg-background/70"
                     onClick={() => setPendingDir("up")}
+                    aria-label="Move up"
                   >
-                    Up
+                    ↑
                   </Button>
                 </div>
                 ) : null}
@@ -501,8 +502,9 @@ export default function CharacterPage({
                       variant="ghost"
                       className="w-full bg-background/50 hover:bg-background/70"
                       onClick={() => setPendingDir("left")}
+                      aria-label="Move left"
                     >
-                      Left
+                      ←
                     </Button>
                   </div>
                 ) : null}
@@ -538,8 +540,9 @@ export default function CharacterPage({
                       variant="ghost"
                       className="w-full bg-background/50 hover:bg-background/70"
                       onClick={() => setPendingDir("right")}
+                      aria-label="Move right"
                     >
-                      Right
+                      →
                     </Button>
                   </div>
                 ) : null}
@@ -560,8 +563,9 @@ export default function CharacterPage({
                       variant="ghost"
                       className="w-full bg-background/50 hover:bg-background/70"
                       onClick={() => setPendingDir("down")}
+                      aria-label="Move down"
                     >
-                      Down
+                      ↓
                     </Button>
                   </div>
                 ) : null}
