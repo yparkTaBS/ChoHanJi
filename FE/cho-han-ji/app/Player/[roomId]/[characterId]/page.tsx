@@ -455,7 +455,9 @@ export default function CharacterPage({
                       key={`${ri}-${ci}`}
                       className="flex h-20 w-20 flex-col items-center justify-center gap-1 bg-background text-lg font-semibold border border-border -ml-px -mt-px"
                     >
-                      <span className="leading-none">{players || "\u00a0"}</span>
+                      <span className="leading-none">
+                        {pos.r === ri && pos.c === ci ? "\u00a0" : players || "\u00a0"}
+                      </span>
                       {items ? (
                         <span className="text-xs font-normal text-muted-foreground leading-none">
                           {items}
@@ -467,7 +469,7 @@ export default function CharacterPage({
               </div>
 
               <div
-                className="absolute rounded-2xl shadow-lg transition-all"
+                className="absolute rounded-2xl transition-all"
                 style={{
                   width: `${OVERLAY_SIZE_PX}px`,
                   height: `${OVERLAY_SIZE_PX}px`,
@@ -477,47 +479,64 @@ export default function CharacterPage({
               >
                 <div className="grid grid-cols-3 grid-rows-3 gap-2 p-3">
                   <div />
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    disabled={disableDir("up")}
-                    onClick={() => setPendingDir("up")}
-                  >
-                    Up
-                  </Button>
+                  {disableDir("up") ? (
+                    <div />
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setPendingDir("up")}
+                    >
+                      Up
+                    </Button>
+                  )}
                   <div />
 
+                  {disableDir("left") ? (
+                    <div />
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setPendingDir("left")}
+                    >
+                      Left
+                    </Button>
+                  )}
+
                   <Button
                     size="sm"
-                    className="w-full"
-                    disabled={disableDir("left")}
-                    onClick={() => setPendingDir("left")}
+                    variant="outline"
+                    className="w-full cursor-default border-dashed"
+                    disabled
                   >
-                    Left
-                  </Button>
-
-                  <div className="flex items-center justify-center rounded-md border border-dashed text-xs font-medium text-muted-foreground">
                     You
-                  </div>
-
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    disabled={disableDir("right")}
-                    onClick={() => setPendingDir("right")}
-                  >
-                    Right
                   </Button>
+
+                  {disableDir("right") ? (
+                    <div />
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setPendingDir("right")}
+                    >
+                      Right
+                    </Button>
+                  )}
 
                   <div />
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    disabled={disableDir("down")}
-                    onClick={() => setPendingDir("down")}
-                  >
-                    Down
-                  </Button>
+                  {disableDir("down") ? (
+                    <div />
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setPendingDir("down")}
+                    >
+                      Down
+                    </Button>
+                  )}
                   <div />
                 </div>
               </div>
