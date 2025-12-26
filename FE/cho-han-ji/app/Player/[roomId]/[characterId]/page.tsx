@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { use, useEffect, useRef, useState, useCallback } from "react";
 import Engine from "@/controller/Engine";
 import Change from "@/model/Change";
 import { useOddEvenGame } from "@/controller/Games/OddEvenGame";
@@ -313,11 +313,15 @@ export default function CharacterPage({
     showMoveNotAllowed ||
     (mode === "attack" && !canAttackDir(dir));
 
-  const overlayGridStart = useMemo(() => {
-    const colStart = Math.min(Math.max(1, pos.c), MAP_WIDTH - 2);
-    const rowStart = Math.min(Math.max(1, pos.r), MAP_HEIGHT - 2);
-    return { colStart, rowStart };
-  }, [pos.c, pos.r]);
+  const showDir = useCallback(
+    (dir: Exclude<Direction, null>) => {
+      const [dr, dc] = DELTAS[dir];
+      const nr = pos.r + dr;
+      const nc = pos.c + dc;
+      return inBounds(nr, nc) && !disableDir(dir);
+    },
+    [pos.c, pos.r, disableDir]
+  );
 
   return (
     <Card className="w-fit">
@@ -459,76 +463,88 @@ export default function CharacterPage({
               </div>
 
               <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5">
-                <div
-                  className="pointer-events-auto grid grid-cols-3 grid-rows-3 gap-2 p-3"
-                  style={{
-                    gridColumnStart: overlayGridStart.colStart,
-                    gridColumnEnd: overlayGridStart.colStart + 3,
-                    gridRowStart: overlayGridStart.rowStart,
-                    gridRowEnd: overlayGridStart.rowStart + 3,
-                  }}
-                >
-                  <div />
-                  {disableDir("up") ? (
-                    <div />
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setPendingDir("up")}
-                    >
+                {/* Up */}
+                {showDir("up") ? (
+                  <div
+                    className="pointer-events-auto p-1"
+                    style={{
+                      gridColumnStart: pos.c + 1,
+                      gridColumnEnd: pos.c + 2,
+                      gridRowStart: pos.r,
+                      gridRowEnd: pos.r + 1,
+                    }}
+                  >
+                    <Button size="sm" className="w-full" onClick={() => setPendingDir("up")}>
                       Up
                     </Button>
-                  )}
-                  <div />
+                  </div>
+                ) : null}
 
-                  {disableDir("left") ? (
-                    <div />
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setPendingDir("left")}
-                    >
+                {/* Left */}
+                {showDir("left") ? (
+                  <div
+                    className="pointer-events-auto p-1"
+                    style={{
+                      gridColumnStart: pos.c,
+                      gridColumnEnd: pos.c + 1,
+                      gridRowStart: pos.r + 1,
+                      gridRowEnd: pos.r + 2,
+                    }}
+                  >
+                    <Button size="sm" className="w-full" onClick={() => setPendingDir("left")}>
                       Left
                     </Button>
-                  )}
+                  </div>
+                ) : null}
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full cursor-default border-dashed"
-                    disabled
-                  >
+                {/* Center marker */}
+                <div
+                  className="pointer-events-none p-1"
+                  style={{
+                    gridColumnStart: pos.c + 1,
+                    gridColumnEnd: pos.c + 2,
+                    gridRowStart: pos.r + 1,
+                    gridRowEnd: pos.r + 2,
+                  }}
+                >
+                  <div className="flex h-full items-center justify-center rounded-md border border-dashed text-xs font-medium text-muted-foreground">
                     You
-                  </Button>
+                  </div>
+                </div>
 
-                  {disableDir("right") ? (
-                    <div />
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setPendingDir("right")}
-                    >
+                {/* Right */}
+                {showDir("right") ? (
+                  <div
+                    className="pointer-events-auto p-1"
+                    style={{
+                      gridColumnStart: pos.c + 2,
+                      gridColumnEnd: pos.c + 3,
+                      gridRowStart: pos.r + 1,
+                      gridRowEnd: pos.r + 2,
+                    }}
+                  >
+                    <Button size="sm" className="w-full" onClick={() => setPendingDir("right")}>
                       Right
                     </Button>
-                  )}
+                  </div>
+                ) : null}
 
-                  <div />
-                  {disableDir("down") ? (
-                    <div />
-                  ) : (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setPendingDir("down")}
-                    >
+                {/* Down */}
+                {showDir("down") ? (
+                  <div
+                    className="pointer-events-auto p-1"
+                    style={{
+                      gridColumnStart: pos.c + 1,
+                      gridColumnEnd: pos.c + 2,
+                      gridRowStart: pos.r + 2,
+                      gridRowEnd: pos.r + 3,
+                    }}
+                  >
+                    <Button size="sm" className="w-full" onClick={() => setPendingDir("down")}>
                       Down
                     </Button>
-                  )}
-                  <div />
-                </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 
