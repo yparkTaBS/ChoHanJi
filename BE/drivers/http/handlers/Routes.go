@@ -10,4 +10,6 @@ var (
 	POSTGameStart       RouteToken = "/api/game/start"
 	GETPlayerGameStatus RouteToken = "/api/game/player"
 	GETAdminGameStatus  RouteToken = "/api/game/admin"
+
+	POSTSubmitMoves RouteToken = "/api/game/Move"
 )
