@@ -8,18 +8,18 @@ import Player, { PlayerClass } from "@/model/Player";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Teams } from "@/model/Tile";
+import DirectionalControls, { Direction } from "@/components/DirectionalControls";
 
 type Mode = "move" | "attack";
-type Direction = "up" | "down" | "left" | "right" | null;
 
 const MAP_WIDTH = 5;
 const MAP_HEIGHT = 5;
 
 function inBounds(r: number, c: number) {
-  return r >= 0 && r <= 4 && c >= 0 && c <= 4;
+  return r >= 0 && r < MAP_HEIGHT && c >= 0 && c < MAP_WIDTH;
 }
 
-const DELTAS: Record<Exclude<Direction, null>, [number, number]> = {
+const DELTAS: Record<Direction, [number, number]> = {
   up: [-1, 0],
   down: [1, 0],
   left: [0, -1],
@@ -84,13 +84,13 @@ export default function CharacterPage({
 
   const [pos, setPos] = useState<{ r: number; c: number }>({ r: 0, c: 0 });
   const [enemyPos, setEnemyPos] = useState<{ r: number; c: number }>({
-    r: 4,
-    c: 4,
+    r: MAP_HEIGHT - 1,
+    c: MAP_WIDTH - 1,
   });
 
   const { roomId, characterId } = use(params);
 
-  // "Move not allowed" popup (when player tries to move into 4,4)
+  // "Move not allowed" popup (when player tries to move into the enemy spawn)
   const [showMoveNotAllowed, setShowMoveNotAllowed] = useState(false);
 
   const [engine, ___] = useState<Engine>(
@@ -102,7 +102,7 @@ export default function CharacterPage({
   )
 
   const [enemy, __] = useState<Player>(
-    new Player(4, 4, "enemy", "Enemy", PlayerClass.Rogue, Teams.TEAM2)
+    new Player(MAP_HEIGHT - 1, MAP_WIDTH - 1, "enemy", "Enemy", PlayerClass.Rogue, Teams.TEAM2)
   );
 
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function CharacterPage({
 
   // NEW: directional attack availability
   const canAttackDir = useCallback(
-    (dir: Exclude<Direction, null>) => {
+    (dir: Direction) => {
       // Deduction: "enemy is occupying that block" means the adjacent tile in that direction equals enemyPos
       const [dr, dc] = DELTAS[dir];
       const target = { r: pos.r + dr, c: pos.c + dc };
@@ -209,7 +209,7 @@ export default function CharacterPage({
     setMode((prev) => (prev === "move" ? "attack" : "move"));
   }
 
-  function submit(dir: Exclude<Direction, null>) {
+  function submit(dir: Direction) {
     if (showGame || showMoveNotAllowed) return;
     const startPlayer = { ...pos };
     const startEnemy = { ...enemyPos };
@@ -238,7 +238,7 @@ export default function CharacterPage({
       const nc = startPlayer.c + dc;
 
       if (inBounds(nr, nc)) {
-        if (nr === 4 && nc === 4) {
+        if (nr === MAP_HEIGHT - 1 && nc === MAP_WIDTH - 1) {
           setShowMoveNotAllowed(true);
           return;
         }
@@ -250,7 +250,6 @@ export default function CharacterPage({
     const enemyNext = computeEnemyMove(startEnemy);
 
     commitPositions(playerNext, enemyNext, startPlayer, startEnemy);
-    setPendingDir(null);
   }
 
   function skipTurn() {
@@ -288,13 +287,16 @@ export default function CharacterPage({
   }, [roomId, characterId]);
 
   // NEW: directional buttons should be disabled in attack mode unless enemy occupies that block
-  const disableDir = (dir: Exclude<Direction, null>) =>
-    showGame ||
-    showMoveNotAllowed ||
-    (mode === "attack" && !canAttackDir(dir));
+  const disableDir = useCallback(
+    (dir: Direction) =>
+      showGame ||
+      showMoveNotAllowed ||
+      (mode === "attack" && !canAttackDir(dir)),
+    [canAttackDir, mode, showGame, showMoveNotAllowed]
+  );
 
   const showDir = useCallback(
-    (dir: Exclude<Direction, null>) => {
+    (dir: Direction) => {
       const [dr, dc] = DELTAS[dir];
       const nr = pos.r + dr;
       const nc = pos.c + dc;
@@ -422,7 +424,13 @@ export default function CharacterPage({
           <div className="space-y-3">
             {/* Map with anchored controls */}
             <div className="relative w-fit">
-              <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
+              <div
+                className="inline-grid rounded-xl border border-border overflow-hidden"
+                style={{
+                  gridTemplateColumns: `repeat(${MAP_WIDTH}, 5rem)`,
+                  gridTemplateRows: `repeat(${MAP_HEIGHT}, 5rem)`,
+                }}
+              >
                 {renderedGrid.map((row, ri) =>
                   row.map(([players, items], ci) => (
                     <div
@@ -442,114 +450,12 @@ export default function CharacterPage({
                 )}
               </div>
 
-              <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5 place-items-center">
-                {/* Up */}
-                {showDir("up") ? (
-                <div
-                    className="pointer-events-auto flex items-center justify-center p-1"
-                    style={{
-                      gridColumnStart: pos.c + 1,
-                      gridColumnEnd: pos.c + 2,
-                      gridRowStart: pos.r,
-                    gridRowEnd: pos.r + 1,
-                  }}
-                >
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => submit("up")}
-                      aria-label="Move up"
-                    >
-                      ↑
-                    </Button>
-                  </div>
-                ) : null}
-
-                {/* Left */}
-                {showDir("left") ? (
-                  <div
-                    className="pointer-events-auto flex items-center justify-center p-1"
-                    style={{
-                      gridColumnStart: pos.c,
-                      gridColumnEnd: pos.c + 1,
-                      gridRowStart: pos.r + 1,
-                      gridRowEnd: pos.r + 2,
-                    }}
-                  >
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => submit("left")}
-                      aria-label="Move left"
-                    >
-                      ←
-                    </Button>
-                  </div>
-                ) : null}
-
-                {/* Center marker */}
-                <div
-                  className="pointer-events-none flex items-center justify-center p-1"
-                  style={{
-                    gridColumnStart: pos.c + 1,
-                    gridColumnEnd: pos.c + 2,
-                    gridRowStart: pos.r + 1,
-                    gridRowEnd: pos.r + 2,
-                  }}
-                >
-                  <div className="flex h-full items-center justify-center rounded-md border border-dashed text-xs font-medium text-muted-foreground">
-                    You
-                  </div>
-                </div>
-
-                {/* Right */}
-                {showDir("right") ? (
-                  <div
-                    className="pointer-events-auto flex items-center justify-center p-1"
-                    style={{
-                      gridColumnStart: pos.c + 2,
-                      gridColumnEnd: pos.c + 3,
-                      gridRowStart: pos.r + 1,
-                      gridRowEnd: pos.r + 2,
-                    }}
-                  >
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => submit("right")}
-                      aria-label="Move right"
-                    >
-                      →
-                    </Button>
-                  </div>
-                ) : null}
-
-                {/* Down */}
-                {showDir("down") ? (
-                  <div
-                    className="pointer-events-auto flex items-center justify-center p-1"
-                    style={{
-                      gridColumnStart: pos.c + 1,
-                      gridColumnEnd: pos.c + 2,
-                      gridRowStart: pos.r + 2,
-                      gridRowEnd: pos.r + 3,
-                    }}
-                  >
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="w-full bg-background/50 hover:bg-background/70"
-                      onClick={() => submit("down")}
-                      aria-label="Move down"
-                    >
-                      ↓
-                    </Button>
-                  </div>
-                ) : null}
-              </div>
+              <DirectionalControls
+                gridSize={{ cols: MAP_WIDTH, rows: MAP_HEIGHT }}
+                position={pos}
+                showDirection={showDir}
+                onSelect={submit}
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
