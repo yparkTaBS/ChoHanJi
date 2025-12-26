@@ -465,19 +465,24 @@ export default function CharacterPage({
               <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5 place-items-center">
                 {/* Up */}
                 {showDir("up") ? (
-                  <div
-                    className="pointer-events-auto flex items-center justify-center p-1"
-                    style={{
-                      gridColumnStart: pos.c + 1,
-                      gridColumnEnd: pos.c + 2,
-                      gridRowStart: pos.r,
-                      gridRowEnd: pos.r + 1,
-                    }}
+                <div
+                  className="pointer-events-auto flex items-center justify-center p-1"
+                  style={{
+                    gridColumnStart: pos.c + 1,
+                    gridColumnEnd: pos.c + 2,
+                    gridRowStart: pos.r,
+                    gridRowEnd: pos.r + 1,
+                  }}
+                >
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full bg-background/50 hover:bg-background/70"
+                    onClick={() => setPendingDir("up")}
                   >
-                    <Button size="sm" className="w-full" onClick={() => setPendingDir("up")}>
-                      Up
-                    </Button>
-                  </div>
+                    Up
+                  </Button>
+                </div>
                 ) : null}
 
                 {/* Left */}
@@ -491,7 +496,12 @@ export default function CharacterPage({
                       gridRowEnd: pos.r + 2,
                     }}
                   >
-                    <Button size="sm" className="w-full" onClick={() => setPendingDir("left")}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => setPendingDir("left")}
+                    >
                       Left
                     </Button>
                   </div>
@@ -523,7 +533,12 @@ export default function CharacterPage({
                       gridRowEnd: pos.r + 2,
                     }}
                   >
-                    <Button size="sm" className="w-full" onClick={() => setPendingDir("right")}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => setPendingDir("right")}
+                    >
                       Right
                     </Button>
                   </div>
@@ -540,7 +555,12 @@ export default function CharacterPage({
                       gridRowEnd: pos.r + 3,
                     }}
                   >
-                    <Button size="sm" className="w-full" onClick={() => setPendingDir("down")}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full bg-background/50 hover:bg-background/70"
+                      onClick={() => setPendingDir("down")}
+                    >
                       Down
                     </Button>
                   </div>
