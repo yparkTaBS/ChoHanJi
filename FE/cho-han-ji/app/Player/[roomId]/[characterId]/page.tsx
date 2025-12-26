@@ -14,6 +14,10 @@ type Direction = "up" | "down" | "left" | "right" | null;
 
 const MAP_WIDTH = 5;
 const MAP_HEIGHT = 5;
+const TILE_SIZE_PX = 80; // matches Tailwind h-20/w-20 (5rem)
+const OVERLAY_SIZE_PX = TILE_SIZE_PX * 3;
+const MAP_PIXEL_WIDTH = MAP_WIDTH * TILE_SIZE_PX;
+const MAP_PIXEL_HEIGHT = MAP_HEIGHT * TILE_SIZE_PX;
 
 function inBounds(r: number, c: number) {
   return r >= 0 && r <= 4 && c >= 0 && c <= 4;
@@ -328,6 +332,18 @@ export default function CharacterPage({
     showMoveNotAllowed ||
     (mode === "attack" && !canAttackDir(dir));
 
+  const overlayPosition = useMemo(() => {
+    const left = Math.min(
+      Math.max(0, pos.c * TILE_SIZE_PX - TILE_SIZE_PX),
+      MAP_PIXEL_WIDTH - OVERLAY_SIZE_PX
+    );
+    const top = Math.min(
+      Math.max(0, pos.r * TILE_SIZE_PX - TILE_SIZE_PX),
+      MAP_PIXEL_HEIGHT - OVERLAY_SIZE_PX
+    );
+    return { left, top };
+  }, [pos.c, pos.r]);
+
   return (
     <Card className="w-fit">
       {/* Move not allowed Popup */}
@@ -410,12 +426,12 @@ export default function CharacterPage({
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
-              <strong>Move Mode:</strong> Select a direction and press{" "}
-              <strong>Move</strong>.
+              <strong>Move Mode:</strong> Use the arrows that appear around your
+              token on the map, then press <strong>Submit</strong>.
             </p>
             <p>
-              <strong>Attack Mode:</strong> Select a direction and press{" "}
-              <strong>Attack</strong>.
+              <strong>Attack Mode:</strong> Pick a direction next to an enemy
+              and press <strong>Submit</strong> to attack.
             </p>
             <p>
               <strong>Order of Actions:</strong> Attack move will always happen
@@ -443,67 +459,116 @@ export default function CharacterPage({
           </CardContent>
         </Card>
 
-        {/* Map */}
-        <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
-          {rowMajorGrid.flatMap((row, ri) =>
-            row.map(([players, items], ci) => (
-              <div
-                key={`${ri}-${ci}`}
-                className="flex h-20 w-20 flex-col items-center justify-center gap-1 bg-background text-lg font-semibold border border-border -ml-px -mt-px"
-              >
-                <span className="leading-none">{players || "\u00a0"}</span>
-                {items ? (
-                  <span className="text-xs font-normal text-muted-foreground leading-none">
-                    {items}
-                  </span>
-                ) : null}
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="space-y-3">
+            {/* Map with anchored controls */}
+            <div className="relative w-fit">
+              <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
+                {rowMajorGrid.flatMap((row, ri) =>
+                  row.map(([players, items], ci) => (
+                    <div
+                      key={`${ri}-${ci}`}
+                      className="flex h-20 w-20 flex-col items-center justify-center gap-1 bg-background text-lg font-semibold border border-border -ml-px -mt-px"
+                    >
+                      <span className="leading-none">{players || "\u00a0"}</span>
+                      {items ? (
+                        <span className="text-xs font-normal text-muted-foreground leading-none">
+                          {items}
+                        </span>
+                      ) : null}
+                    </div>
+                  ))
+                )}
               </div>
-            ))
-          )}
-        </div>
 
-        {/* Controls */}
-        <div className="grid grid-cols-3 gap-2 place-items-center">
-          <div />
-          <Button disabled={disableDir("up")} onClick={() => setPendingDir("up")}>
-            Up
-          </Button>
-          <div />
+              <div
+                className="absolute rounded-2xl border border-border/60 bg-background/90 shadow-lg backdrop-blur-sm transition-all"
+                style={{
+                  width: `${OVERLAY_SIZE_PX}px`,
+                  height: `${OVERLAY_SIZE_PX}px`,
+                  left: `${overlayPosition.left}px`,
+                  top: `${overlayPosition.top}px`,
+                }}
+              >
+                <div className="grid grid-cols-3 grid-rows-3 gap-2 p-3">
+                  <div />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={disableDir("up")}
+                    onClick={() => setPendingDir("up")}
+                  >
+                    Up
+                  </Button>
+                  <div />
 
-          <Button
-            disabled={disableDir("left")}
-            onClick={() => setPendingDir("left")}
-          >
-            Left
-          </Button>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={disableDir("left")}
+                    onClick={() => setPendingDir("left")}
+                  >
+                    Left
+                  </Button>
 
-          <Button variant="secondary" onClick={toggleMode}>
-            Switch to {mode === "move" ? "Attack" : "Move"} Mode
-          </Button>
+                  <div className="flex items-center justify-center rounded-md border border-dashed text-xs font-medium text-muted-foreground">
+                    You
+                  </div>
 
-          <Button
-            disabled={disableDir("right")}
-            onClick={() => setPendingDir("right")}
-          >
-            Right
-          </Button>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={disableDir("right")}
+                    onClick={() => setPendingDir("right")}
+                  >
+                    Right
+                  </Button>
 
-          <div />
-          <Button
-            disabled={disableDir("down")}
-            onClick={() => setPendingDir("down")}
-          >
-            Down
-          </Button>
-          <div />
+                  <div />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    disabled={disableDir("down")}
+                    onClick={() => setPendingDir("down")}
+                  >
+                    Down
+                  </Button>
+                  <div />
+                </div>
+              </div>
+            </div>
 
-          <div />
-          <div className="flex gap-2 pt-2">
-            <Button
-              disabled={!pendingDir || showGame || showMoveNotAllowed}
-              onClick={submit}
-            >
-              {mode === "move" ? "Move" : "Attack"}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                disabled={!pendingDir || showGame || showMoveNotAllowed}
+                onClick={submit}
+              >
+                {mode === "move" ? "Submit Move" : "Submit Attack"}
+              </Button>
+
+              <Button
+                variant="outline"
+                disabled={!pendingDir || showGame || showMoveNotAllowed}
+                onClick={() => setPendingDir(null)}
+              >
+                Clear
+              </Button>
+
+              {pendingDir ? (
+                <p className="text-sm text-muted-foreground">
+                  Selected: <strong>{pendingDir.toUpperCase()}</strong>
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Choose a direction around your piece, then press Submit.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex min-w-[200px] flex-col gap-2">
+            <Button variant="secondary" onClick={toggleMode}>
+              Switch to {mode === "move" ? "Attack" : "Move"} Mode
             </Button>
 
             <Button
@@ -513,26 +578,7 @@ export default function CharacterPage({
             >
               Skip Turn
             </Button>
-
-            <Button
-              variant="outline"
-              disabled={!pendingDir || showGame || showMoveNotAllowed}
-              onClick={() => setPendingDir(null)}
-            >
-              Clear
-            </Button>
           </div>
-          <div />
-
-          <div />
-          {pendingDir ? (
-            <p className="text-sm text-muted-foreground">
-              Selected: <strong>{pendingDir.toUpperCase()}</strong>
-            </p>
-          ) : (
-            <div />
-          )}
-          <div />
         </div>
       </CardContent>
     </Card>
