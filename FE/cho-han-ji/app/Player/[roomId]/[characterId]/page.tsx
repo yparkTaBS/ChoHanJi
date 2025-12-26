@@ -482,7 +482,7 @@ export default function CharacterPage({
               </div>
 
               <div
-                className="absolute rounded-2xl border border-border/60 shadow-lg transition-all"
+                className="absolute rounded-2xl shadow-lg transition-all"
                 style={{
                   width: `${OVERLAY_SIZE_PX}px`,
                   height: `${OVERLAY_SIZE_PX}px`,
