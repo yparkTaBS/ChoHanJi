@@ -2,12 +2,13 @@
 
 import { use, useEffect, useRef, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import Engine from "@/controller/Engine";
 import { Message } from "@/model/SSEMessage";
 import { GameConnected } from "@/model/SSEMessages/GameConnected";
 import TeamTileClass from "@/components/ui/TeamTileClass";
 import TeamTextClass from "@/components/ui/TeamTextClass";
-import { Package, Flag as FlagIcon } from "lucide-react";
+import { CheckCircle, Circle, Package, Flag as FlagIcon } from "lucide-react";
 import Player from "@/model/Player";
 import { Flag, Teams } from "@/model/Tile";
 
@@ -16,6 +17,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
   type RenderedGrid = ReturnType<Engine["RenderAll"]>;
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid | null>();
   const [players, setPlayers] = useState<Player[]>([]);
+  const [readyPlayers, setReadyPlayers] = useState<Set<string>>(new Set());
   const { roomId } = use(params);
 
   const grid = renderedGrid ?? [];
@@ -46,6 +48,16 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
 
           setRenderedGrid(engine.RenderAll());
           setPlayers(msgBody.Players ?? []);
+          setReadyPlayers(new Set());
+        }
+
+        if (baseMessage.MessageType === "PlayerIsReady" && typeof data.Message === "string") {
+          const playerId = data.Message;
+          setReadyPlayers((prev) => {
+            const next = new Set(prev);
+            next.add(playerId);
+            return next;
+          });
         }
       } catch (e) {
         console.log(e);
@@ -67,12 +79,26 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     return { team1, team2 };
   }, [players]);
 
+  const allReady = useMemo(() => {
+    if (players.length === 0) return false;
+    return players.every((player) => readyPlayers.has(player.Id));
+  }, [players, readyPlayers]);
+
   const renderTeam = (team: Teams, title: string, teamMembers: Player[]) => (
     <div className="flex-1 rounded-lg border border-border bg-muted/30 p-3">
       <div className={["mb-2 text-sm font-semibold", TeamTextClass(team)].join(" ")}>{title}</div>
       <ul className="space-y-1 text-sm text-muted-foreground">
         {teamMembers.length > 0 ? (
-          teamMembers.map((player) => <li key={player.Id}>{player.Name}</li>)
+          teamMembers.map((player) => (
+            <li key={player.Id} className="flex items-center gap-2">
+              {readyPlayers.has(player.Id) ? (
+                <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <Circle className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span>{player.Name}</span>
+            </li>
+          ))
         ) : (
           <li className="italic text-muted-foreground">No players</li>
         )}
@@ -82,8 +108,11 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
 
   return (
     <Card className="w-full max-w-full">
-      <CardHeader>
+      <CardHeader className="space-y-3">
         <CardTitle>Map</CardTitle>
+        <Button disabled={!allReady} className="w-fit">
+          Submit
+        </Button>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
@@ -92,7 +121,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
             style={{ gridTemplateColumns: `repeat(${cols ?? 0}, 5rem)` }}
           >
             {grid.flatMap((row, ri) =>
-              row.map(([players, _items, flag, team], ci) => (
+              row.map(([players, , flag, team], ci) => (
                 <div key={`${ri}-${ci}`}
                   className={[
                     "relative flex h-20 w-20 flex-col items-center justify-center gap-1 text-lg font-semibold",
