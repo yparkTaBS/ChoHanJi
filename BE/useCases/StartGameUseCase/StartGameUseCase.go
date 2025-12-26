@@ -7,16 +7,16 @@ import (
 	"errors"
 )
 
-type UseCaseInterface interface {
+type Interface interface {
 	Announce(roomId string) error
 }
 
-type StartGameUseCase struct {
+type Struct struct {
 	rooms Room.Rooms
 	hub   IHub
 }
 
-var _ UseCaseInterface = (*StartGameUseCase)(nil)
+var _ Interface = (*Struct)(nil)
 
 type IHub interface {
 	PublishToAll(roomId, messageType, messageBody string) error
@@ -24,12 +24,12 @@ type IHub interface {
 
 var _ IHub = (*SSEHub.SSEHub)(nil)
 
-func New(rooms Room.Rooms, hub IHub) *StartGameUseCase {
-	return &StartGameUseCase{rooms, hub}
+func New(rooms Room.Rooms, hub IHub) *Struct {
+	return &Struct{rooms, hub}
 }
 
 // Announce implements IStartGameUseCase.
-func (s *StartGameUseCase) Announce(roomId string) error {
+func (s *Struct) Announce(roomId string) error {
 	room, found := s.rooms[Room.Id(roomId)]
 	if !found {
 		return errors.New("game not found")

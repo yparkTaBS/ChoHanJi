@@ -153,7 +153,7 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	if err := builder.Register(
 		StartGameUseCase.New,
 		o.AsSingleton,
-		o.As[StartGameUseCase.UseCaseInterface],
+		o.As[StartGameUseCase.Interface],
 	); err != nil {
 		return err
 	}
