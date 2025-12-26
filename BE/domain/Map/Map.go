@@ -69,15 +69,25 @@ func (m *Map) PlacePlayer(player *Player.Struct) error {
 		return errors.New("player is nil")
 	}
 
-	if player.TeamNumber == 1 {
-		m.tiles[0][0].AddPlayer(player)
-		return nil
+	spawnTile, err := m.findSpawnTile(Team.Enum(player.TeamNumber))
+	if err != nil {
+		return err
 	}
 
-	x := len(m.tiles) - 1
-	y := len(m.tiles[0]) - 1
-	m.tiles[x][y].AddPlayer(player)
+	spawnTile.AddPlayer(player)
 	return nil
+}
+
+func (m *Map) findSpawnTile(team Team.Enum) (*Tile, error) {
+	for _, column := range m.tiles {
+		for _, tile := range column {
+			if tile.Flag == TileFlag.SPAWN && tile.Team == team {
+				return tile, nil
+			}
+		}
+	}
+
+	return nil, errors.New("spawn point not found for team")
 }
 
 func (m *Map) GetMapWidth() (int, error) {
