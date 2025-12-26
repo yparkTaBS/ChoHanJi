@@ -79,7 +79,6 @@ export default function CharacterPage({
   const playerRef = useRef<Player | null>(null);
   const enemyRef = useRef<Player | null>(null);
   type RenderedGrid = ReturnType<Engine["RenderAll"]>;
-  type RenderedTile = RenderedGrid[number][number];
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid>(() => {
     const engine = new Engine(MAP_WIDTH, MAP_HEIGHT);
     return engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false);
@@ -129,20 +128,6 @@ export default function CharacterPage({
     enemyRef.current = enemy;
     setRenderedGrid(engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false));
   }, [characterId, enemyPos.c, enemyPos.r, pos.c, pos.r, roomId]);
-
-  const rowMajorGrid = useMemo(() => {
-    if (!renderedGrid.length) return [];
-    const height = renderedGrid[0].length;
-    const rows: RenderedTile[][] = [];
-    for (let row = 0; row < height; row++) {
-      const rowTiles: RenderedTile[] = [];
-      for (let col = 0; col < renderedGrid.length; col++) {
-        rowTiles.push(renderedGrid[col][row]);
-      }
-      rows.push(rowTiles);
-    }
-    return rows;
-  }, [renderedGrid]);
 
   const commitPositions = useCallback(
     (
@@ -464,7 +449,7 @@ export default function CharacterPage({
             {/* Map with anchored controls */}
             <div className="relative w-fit">
               <div className="inline-grid grid-cols-5 rounded-xl border border-border overflow-hidden">
-                {rowMajorGrid.flatMap((row, ri) =>
+                {renderedGrid.map((row, ri) =>
                   row.map(([players, items], ci) => (
                     <div
                       key={`${ri}-${ci}`}
