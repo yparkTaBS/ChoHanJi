@@ -19,3 +19,5 @@ yarn-error.log*
 /FE/cho-han-ji/.pnp.js
 /FE/cho-han-ji/coverage
 /FE/cho-han-ji/.vercel
+
+/BE/server

@@ -75,6 +75,8 @@ func (m *Map) PlacePlayer(player *Player.Struct) error {
 	}
 
 	spawnTile.AddPlayer(player)
+	player.X = spawnTile.X
+	player.Y = spawnTile.Y
 	return nil
 }
 
