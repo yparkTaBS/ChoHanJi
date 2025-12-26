@@ -462,11 +462,11 @@ export default function CharacterPage({
                 )}
               </div>
 
-              <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5">
+              <div className="pointer-events-none absolute inset-0 grid grid-cols-5 grid-rows-5 place-items-center">
                 {/* Up */}
                 {showDir("up") ? (
                   <div
-                    className="pointer-events-auto p-1"
+                    className="pointer-events-auto flex items-center justify-center p-1"
                     style={{
                       gridColumnStart: pos.c + 1,
                       gridColumnEnd: pos.c + 2,
@@ -483,7 +483,7 @@ export default function CharacterPage({
                 {/* Left */}
                 {showDir("left") ? (
                   <div
-                    className="pointer-events-auto p-1"
+                    className="pointer-events-auto flex items-center justify-center p-1"
                     style={{
                       gridColumnStart: pos.c,
                       gridColumnEnd: pos.c + 1,
@@ -499,7 +499,7 @@ export default function CharacterPage({
 
                 {/* Center marker */}
                 <div
-                  className="pointer-events-none p-1"
+                  className="pointer-events-none flex items-center justify-center p-1"
                   style={{
                     gridColumnStart: pos.c + 1,
                     gridColumnEnd: pos.c + 2,
@@ -515,7 +515,7 @@ export default function CharacterPage({
                 {/* Right */}
                 {showDir("right") ? (
                   <div
-                    className="pointer-events-auto p-1"
+                    className="pointer-events-auto flex items-center justify-center p-1"
                     style={{
                       gridColumnStart: pos.c + 2,
                       gridColumnEnd: pos.c + 3,
@@ -532,7 +532,7 @@ export default function CharacterPage({
                 {/* Down */}
                 {showDir("down") ? (
                   <div
-                    className="pointer-events-auto p-1"
+                    className="pointer-events-auto flex items-center justify-center p-1"
                     style={{
                       gridColumnStart: pos.c + 1,
                       gridColumnEnd: pos.c + 2,
