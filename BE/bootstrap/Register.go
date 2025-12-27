@@ -18,6 +18,7 @@ import (
 	"ChoHanJi/drivers/http/handlers/StartGame"
 	"ChoHanJi/drivers/http/handlers/SubmitAttacks"
 	"ChoHanJi/drivers/http/handlers/SubmitBonusAttack"
+	"ChoHanJi/drivers/http/handlers/SubmitFightResult"
 	"ChoHanJi/drivers/http/handlers/SubmitMoves"
 	"ChoHanJi/drivers/http/handlers/WaitingRoom"
 	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
@@ -28,6 +29,7 @@ import (
 	"ChoHanJi/useCases/RoomFactory"
 	"ChoHanJi/useCases/RoomFactory/ports"
 	"ChoHanJi/useCases/StartGameUseCase"
+	"ChoHanJi/useCases/SubmitFightResultUseCase"
 	"ChoHanJi/useCases/SubmitMoveUseCase"
 	"context"
 	"fmt"
@@ -154,6 +156,15 @@ func RegisterDrivers(ctx context.Context, builder *cb.ContainerBuilder) error {
 	}
 
 	if err := builder.Register(
+		SubmitFightResult.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTSubmitAttackResult)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
 		SubmitBonusAttack.New,
 		o.AsSingleton,
 		o.Named(string(handlers.POSTSubmitBonusAttacks)),
@@ -241,6 +252,14 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 	}
 
 	if err := builder.Register(
+		SubmitFightResultUseCase.New,
+		o.AsSingleton,
+		o.As[SubmitFightResultUseCase.Interface],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
 		ProceedUseCase.New,
 		o.AsSingleton,
 		o.As[ProceedUseCase.Interface],
@@ -274,6 +293,7 @@ func RegisterDomains(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.AsSingleton,
 		o.As[ProceedUseCase.IPlayerBlocker],
 		o.As[Action.IPlayerBlocker],
+		o.As[SubmitFightResultUseCase.IPlayerBlocker],
 	); err != nil {
 		return err
 	}
@@ -298,6 +318,7 @@ func RegisterDomains(ctx context.Context, builder *cb.ContainerBuilder) error {
 		Fight.New,
 		o.AsSingleton,
 		o.As[Action.CurrentFights],
+		o.As[SubmitFightResultUseCase.IFights],
 	); err != nil {
 		return err
 	}
@@ -322,6 +343,7 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.As[GameStatus.IHub],
 		o.As[SubmitMoveUseCase.IHub],
 		o.As[Action.IHub],
+		o.As[SubmitFightResultUseCase.IHub],
 	); err != nil {
 		return err
 	}

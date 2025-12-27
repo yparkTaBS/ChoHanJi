@@ -5,6 +5,7 @@ import (
 	"ChoHanJi/domain/IdGenerator"
 	"ChoHanJi/domain/Player"
 	"ChoHanJi/domain/Room"
+	"fmt"
 	"sync"
 )
 
@@ -17,6 +18,9 @@ type Struct struct {
 	AttackerResult any
 	DefenderId     Player.Id
 	DefenderResult any
+	WinnerId       Player.Id `json:"WinnerId,omitempty"`
+	submissions    map[Player.Id]struct{}
+	resolved       bool
 }
 
 type CurrentFights struct {
@@ -33,7 +37,13 @@ func (cf *CurrentFights) newFight(room map[Id]*Struct, gameType Game.Type, attId
 
 		_, found := room[Id(id)]
 		if !found {
-			return &Struct{Id(id), gameType, attId, nil, defId, nil}, nil
+			return &Struct{
+				Id:          Id(id),
+				Type:        gameType,
+				AttackerId:  attId,
+				DefenderId:  defId,
+				submissions: make(map[Player.Id]struct{}),
+			}, nil
 		}
 	}
 }
@@ -61,4 +71,44 @@ func (cf *CurrentFights) Create(roomId Room.Id, gameType Game.Type, attId, defId
 	room[fight.Id] = fight
 
 	return fight, nil
+}
+
+func (cf *CurrentFights) RegisterResult(roomId Room.Id, fightId Id, submitterId Player.Id, winnerId Player.Id) (*Struct, bool, error) {
+	cf.lock.Lock()
+	defer cf.lock.Unlock()
+
+	room, found := cf.currentFights[roomId]
+	if !found {
+		return nil, false, fmt.Errorf("CurrentFights.RegisterResult: room not found")
+	}
+
+	fight, found := room[fightId]
+	if !found {
+		return nil, false, fmt.Errorf("CurrentFights.RegisterResult: fight not found")
+	}
+
+	if fight.resolved {
+		return fight, false, nil
+	}
+
+	if submitterId != fight.AttackerId && submitterId != fight.DefenderId {
+		return nil, false, fmt.Errorf("CurrentFights.RegisterResult: player not part of fight")
+	}
+
+	if winnerId != fight.AttackerId && winnerId != fight.DefenderId {
+		return nil, false, fmt.Errorf("CurrentFights.RegisterResult: winner not part of fight")
+	}
+
+	fight.submissions[submitterId] = struct{}{}
+
+	if fight.WinnerId == "" {
+		fight.WinnerId = winnerId
+	}
+
+	ready := len(fight.submissions) >= 2
+	if ready {
+		fight.resolved = true
+	}
+
+	return fight, ready, nil
 }
