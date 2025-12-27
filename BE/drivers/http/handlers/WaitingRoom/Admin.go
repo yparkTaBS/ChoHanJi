@@ -46,7 +46,6 @@ func (a *AdminWaitingRoom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
 	if err := a.uc.ConnectAndListen(ctx, ioWriter, roomId, flusher); err != nil {

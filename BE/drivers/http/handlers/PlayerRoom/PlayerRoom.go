@@ -47,7 +47,6 @@ func (p *PlayerRoom) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
 	if err := p.uc.ConnectAndListen(ctx, ioWriter, roomId, playerId, flusher); err != nil {

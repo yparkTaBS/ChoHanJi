@@ -5,7 +5,6 @@ import (
 	"ChoHanJi/driven/sse/SSEHub"
 	"ChoHanJi/infrastructure/Logging"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -82,7 +81,7 @@ func (uc *AdminWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 			}
 			flusher.Flush()
 		case <-ctx.Done():
-			return errors.New("context done?")
+			return nil
 		}
 	}
 }
