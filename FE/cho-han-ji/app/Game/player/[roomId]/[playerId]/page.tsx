@@ -139,8 +139,17 @@ export default function Page({
           engineRef.current.RenderParts(0, 0, mapSize.height, mapSize.width, false)
         );
       }
+
+      const capacity = focusPlayer?.ClassInfo.MovementSpeed ?? movementCapacity;
+      setMovementCapacity(capacity);
+      setRemainingMovement(capacity);
+      setHasMoved(false);
+      setHasAttacked(false);
+      setHasSkipped(false);
+      setActionError(null);
+      setActionMessage(null);
     },
-    [mapSize.height, mapSize.width, me, renderAroundPlayer]
+    [mapSize.height, mapSize.width, me, movementCapacity, renderAroundPlayer]
   );
 
   useEffect(() => {
