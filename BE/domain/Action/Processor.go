@@ -91,22 +91,8 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 
 			deathX, deathY := player.X, player.Y
 
-			// 1) Drop item at death tile BEFORE moving to spawn
-			if player.Bag != nil {
-				deathTile, err := fm.Map.GetTile(deathX, deathY)
-				if err != nil {
-					return err
-				}
-
-				item := player.Bag
-				prevX, prevY := item.X, item.Y
-
-				item.X, item.Y = deathX, deathY
-				deathTile.AddItem(item)
-
-				player.Bag = nil
-				changes.UpsertPlayer(deadId, deathX, deathY, deathX, deathY, nil)
-				changes.UpsertItem(item.Id, deathX, deathY, prevX, prevY)
+			if err := p.dropBagOnTile(fm, changes, player, deathX, deathY); err != nil {
+				return err
 			}
 
 			// 2) Move dead player to spawn immediately
@@ -193,6 +179,23 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 
 		if err := p.movePlayerOnMap(fm, pl, move.X, move.Y, move.PrevX, move.PrevY); err != nil {
 			return err
+		}
+
+		// ✅ NEW: Deposit item if player is on their team's treasure chest
+		if pl.Bag != nil {
+			tile, err := fm.Map.GetTile(pl.X, pl.Y)
+			if err != nil {
+				return err
+			}
+
+			if tile.Flag == TileFlag.TREASURE_CHEST {
+				// ⚠️ Assumption: tile.TeamNumber exists and matches player.TeamNumber
+				if int(tile.Team) == pl.TeamNumber {
+					if err := p.dropBagOnTile(fm, changes, pl, pl.X, pl.Y); err != nil {
+						return err
+					}
+				}
+			}
 		}
 	}
 
@@ -433,6 +436,11 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 	// -------------------
 	tiles = fm.Map.GetNonEmptyTiles()
 	for _, tile := range tiles {
+		// ✅ NEW: Prevent picking up items off treasure chest tiles (deposit-only behavior)
+		if tile.Flag == TileFlag.TREASURE_CHEST {
+			continue
+		}
+
 		if len(tile.Items) == 0 || len(tile.Player) == 0 {
 			continue
 		}
@@ -584,6 +592,33 @@ func (p *Processor) movePlayerOnMap(fm *Room.Room, player *Player.Struct, newX, 
 
 	player.X = newX
 	player.Y = newY
+	return nil
+}
+
+func (p *Processor) dropBagOnTile(fm *Room.Room, changes *UpdateMessage.Struct, player *Player.Struct, tileX, tileY int) error {
+	if player.Bag == nil {
+		return nil
+	}
+
+	tile, err := fm.Map.GetTile(tileX, tileY)
+	if err != nil {
+		return err
+	}
+
+	item := player.Bag
+	prevX, prevY := item.X, item.Y
+
+	// Put item on the board where the player is standing
+	item.X, item.Y = tileX, tileY
+	tile.AddItem(item)
+
+	// Clear bag
+	player.Bag = nil
+
+	// Broadcast updates
+	changes.UpsertPlayer(player.Id, player.X, player.Y, player.X, player.Y, nil)
+	changes.UpsertItem(item.Id, tileX, tileY, prevX, prevY)
+
 	return nil
 }
 
