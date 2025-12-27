@@ -5,8 +5,10 @@ import (
 	"ChoHanJi/domain/Player"
 	"ChoHanJi/domain/PlayerBlocker"
 	"ChoHanJi/domain/Room"
+	"encoding/json"
 	"fmt"
 
+	"ChoHanJi/driven/sse/SSEHub"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -23,18 +25,26 @@ type IPlayerBlocker interface {
 }
 
 var _ IPlayerBlocker = (*PlayerBlocker.Struct)(nil)
+
+type IHub interface {
+	Publish(roomId, subscriberId, messageType, messageBody string) error
+}
+
+var _ IHub = (*SSEHub.Struct)(nil)
 var _ IFights = (*Fight.CurrentFights)(nil)
 
 type Struct struct {
 	fights    IFights
 	blocker   IPlayerBlocker
+	hub       IHub
 	validator *validator.Validate
 }
 
-func New(fights IFights, blocker IPlayerBlocker, validator *validator.Validate) *Struct {
+func New(fights IFights, blocker IPlayerBlocker, hub IHub, validator *validator.Validate) *Struct {
 	return &Struct{
 		fights:    fights,
 		blocker:   blocker,
+		hub:       hub,
 		validator: validator,
 	}
 }
@@ -60,6 +70,19 @@ func (s *Struct) Submit(roomId Room.Id, fightId Fight.Id, submitterId Player.Id,
 	// Unblock both participants so the processor can continue.
 	_ = s.blocker.Unblock(roomId, fight.AttackerId)
 	_ = s.blocker.Unblock(roomId, fight.DefenderId)
+
+	msg, err := json.Marshal(fight)
+	if err != nil {
+		return fmt.Errorf("SubmitFightResultUseCase.Submit: %w", err)
+	}
+
+	if err := s.hub.Publish(string(roomId), string(fight.AttackerId), "FightResult", string(msg)); err != nil {
+		return fmt.Errorf("SubmitFightResultUseCase.Submit: %w", err)
+	}
+
+	if err := s.hub.Publish(string(roomId), string(fight.DefenderId), "FightResult", string(msg)); err != nil {
+		return fmt.Errorf("SubmitFightResultUseCase.Submit: %w", err)
+	}
 
 	return nil
 }
