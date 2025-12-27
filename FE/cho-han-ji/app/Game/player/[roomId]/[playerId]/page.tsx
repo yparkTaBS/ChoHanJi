@@ -22,6 +22,7 @@ export default function Page({
   const esRef = useRef<EventSource | null>(null);
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [me, setMe] = useState<Player | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [connected, setConnected] = useState(false);
 
@@ -49,6 +50,12 @@ export default function Page({
           const msgBody = data.Message as GameConnected;
           const engine = new Engine(msgBody.MapWidth, msgBody.MapHeight);
           engine.Initialize(msgBody.Tiles ?? [], msgBody.Players ?? [], msgBody.Items ?? []);
+
+          for (const player of msgBody.Players) {
+            if (player.Id === playerId) {
+              setMe(player)
+            }
+          }
 
           setRenderedGrid(engine.RenderAll());
           setPlayers(msgBody.Players ?? []);
