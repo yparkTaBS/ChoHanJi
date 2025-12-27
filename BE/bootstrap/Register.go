@@ -2,6 +2,9 @@ package bootstrap
 
 import (
 	"ChoHanJi/domain/Action"
+	"ChoHanJi/domain/Death"
+	"ChoHanJi/domain/Fight"
+	"ChoHanJi/domain/PlayerBlocker"
 	"ChoHanJi/domain/Room"
 	"ChoHanJi/driven/sse/SSEHub"
 	"ChoHanJi/drivers/http/handlers"
@@ -261,6 +264,40 @@ func RegisterDomains(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.AsSingleton,
 		o.As[StartGameUseCase.IActionList],
 		o.As[SubmitMoveUseCase.IActionList],
+		o.As[ProceedUseCase.ActionList],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		PlayerBlocker.New,
+		o.AsSingleton,
+		o.As[ProceedUseCase.IPlayerBlocker],
+		o.As[Action.IPlayerBlocker],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		Action.NewProcessor,
+		o.AsSingleton,
+		o.As[ProceedUseCase.ActionProcessor],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		Death.NewDeathList,
+		o.AsSingleton,
+		o.As[Action.DeathList],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		Fight.New,
+		o.AsSingleton,
+		o.As[Action.CurrentFights],
 	); err != nil {
 		return err
 	}
@@ -284,6 +321,7 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.AsSingleton,
 		o.As[GameStatus.IHub],
 		o.As[SubmitMoveUseCase.IHub],
+		o.As[Action.IHub],
 	); err != nil {
 		return err
 	}
