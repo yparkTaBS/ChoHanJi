@@ -9,14 +9,18 @@ import (
 	"strings"
 )
 
-type PlayerGameStatus struct {
+type Struct struct {
 	uc GameStatus.Interface
 }
 
-var _ http.Handler = (*PlayerGameStatus)(nil)
+var _ http.Handler = (*Struct)(nil)
+
+func New(uc GameStatus.Interface) *Struct {
+	return &Struct{uc}
+}
 
 // ServeHTTP implements http.Handler.
-func (p *PlayerGameStatus) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Struct) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -47,7 +51,7 @@ func (p *PlayerGameStatus) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
 
-	if err := p.uc.ConnectAndListen(ctx, ioWriter, roomId, playerId, flusher); err != nil {
+	if err := s.uc.ConnectAndListen(ctx, ioWriter, roomId, playerId, flusher); err != nil {
 		logger.ErrorContext(ctx, "Something went wrong...", slog.Any("Error", err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
