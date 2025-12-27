@@ -10,6 +10,7 @@ import Item from "@/model/Item";
 import Player, { PlayerClass, PlayerInstance } from "@/model/Player";
 import { Message } from "@/model/SSEMessage";
 import { GameConnected } from "@/model/SSEMessages/GameConnected";
+import { parseUpdateMessage } from "@/model/SSEMessages/Update";
 import { Flag } from "@/model/Tile";
 import { Flag as FlagIcon, Package } from "lucide-react";
 import Change from "@/model/Change";
@@ -100,6 +101,10 @@ export default function Page({
             )
           );
         }
+
+        if (baseMessage.MessageType === "Update") {
+          handleServerUpdate(data.Message);
+        }
       } catch (error) {
         console.log("Failed to parse SSE message", error);
       }
@@ -110,7 +115,7 @@ export default function Page({
       es.close();
       esRef.current = null;
     };
-  }, [playerId, roomId]);
+  }, [handleServerUpdate, playerId, roomId]);
 
   const grid = renderedGrid ?? [];
   const cols = grid[0]?.length ?? 0;
@@ -143,6 +148,73 @@ export default function Page({
       );
     },
     []
+  );
+
+  const handleServerUpdate = useCallback(
+    (message: unknown) => {
+      if (!engineRef.current) return;
+
+      const { playerChanges, itemChanges } = parseUpdateMessage(message);
+      const changes: Change[] = [
+        ...playerChanges.map(
+          (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Player", change.Id)
+        ),
+        ...itemChanges.map(
+          (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Item", change.ItemId)
+        ),
+      ];
+
+      if (!changes.length) return;
+
+      engineRef.current.Update(changes);
+
+      const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
+      if (playerChangeMap.size) {
+        setPlayers((prev) =>
+          prev.map((player) => {
+            const update = playerChangeMap.get(player.Id);
+            if (!update) return player;
+            return { ...player, X: update.X, Y: update.Y };
+          })
+        );
+      }
+
+      if (itemChanges.length) {
+        setItems((prev) => {
+          const itemMap = new Map(prev.map((item) => [item.Id, item]));
+          for (const change of itemChanges) {
+            if (change.X === -1 && change.Y === -1) {
+              itemMap.delete(change.ItemId);
+              continue;
+            }
+
+            const existing = itemMap.get(change.ItemId);
+            if (existing) {
+              itemMap.set(change.ItemId, { ...existing, X: change.X, Y: change.Y });
+            }
+          }
+          return Array.from(itemMap.values());
+        });
+      }
+
+      let focusPlayer: PlayerInstance | null = me;
+      if (me) {
+        const myChange = playerChangeMap.get(me.Id);
+        if (myChange) {
+          focusPlayer = { ...me, CurrentX: myChange.X, CurrentY: myChange.Y, X: myChange.X, Y: myChange.Y };
+          setMe(focusPlayer);
+        }
+      }
+
+      if (focusPlayer) {
+        renderAroundPlayer(focusPlayer);
+      } else {
+        setRenderedGrid(
+          engineRef.current.RenderParts(0, 0, mapSize.height, mapSize.width, false)
+        );
+      }
+    },
+    [mapSize.height, mapSize.width, me, renderAroundPlayer]
   );
 
   const showDirection = useCallback(

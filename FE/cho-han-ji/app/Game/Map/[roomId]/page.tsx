@@ -1,19 +1,22 @@
 "use client";
 
-import { use, useEffect, useRef, useState, useMemo } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Engine from "@/controller/Engine";
 import { Message } from "@/model/SSEMessage";
 import { GameConnected } from "@/model/SSEMessages/GameConnected";
+import { parseUpdateMessage } from "@/model/SSEMessages/Update";
 import TeamTileClass from "@/components/ui/TeamTileClass";
 import TeamTextClass from "@/components/ui/TeamTextClass";
 import { CheckCircle, Circle, Package, Flag as FlagIcon } from "lucide-react";
 import Player from "@/model/Player";
 import { Flag, Teams } from "@/model/Tile";
+import Change from "@/model/Change";
 
 export default function Page({ params }: { params: Promise<{ roomId: string }> }) {
   const esRef = useRef<EventSource | null>(null);
+  const engineRef = useRef<Engine | null>(null);
   type RenderedGrid = ReturnType<Engine["RenderAll"]>;
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid | null>();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -22,6 +25,36 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
 
   const grid = renderedGrid ?? [];
   const cols = grid[0]?.length ?? 0;
+
+  const handleUpdateMessage = useCallback((message: unknown) => {
+    if (!engineRef.current) return;
+
+    const { playerChanges, itemChanges } = parseUpdateMessage(message);
+    const changes: Change[] = [
+      ...playerChanges.map(
+        (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Player", change.Id)
+      ),
+      ...itemChanges.map(
+        (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Item", change.ItemId)
+      ),
+    ];
+
+    if (!changes.length) return;
+
+    engineRef.current.Update(changes);
+    setRenderedGrid(engineRef.current.RenderAll());
+
+    if (playerChanges.length) {
+      const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
+      setPlayers((prev) =>
+        prev.map((player) => {
+          const update = playerChangeMap.get(player.Id);
+          if (!update) return player;
+          return { ...player, X: update.X, Y: update.Y };
+        })
+      );
+    }
+  }, []);
 
   useEffect(() => {
     const es = new EventSource(
@@ -46,6 +79,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
           const engine = new Engine(snapshot.MapWidth, snapshot.MapHeight);
           engine.Initialize(msgBody.Tiles, msgBody.Players, msgBody.Items);
 
+          engineRef.current = engine;
           setRenderedGrid(engine.RenderAll());
           setPlayers(msgBody.Players ?? []);
           setReadyPlayers(new Set());
@@ -59,6 +93,10 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
             return next;
           });
         }
+
+        if (baseMessage.MessageType === "Update") {
+          handleUpdateMessage(data.Message);
+        }
       } catch (e) {
         console.log(e);
         return;
@@ -70,7 +108,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
       es.close();
       esRef.current = null;
     };
-  }, [roomId]);
+  }, [handleUpdateMessage, roomId]);
 
   const teamPlayers = useMemo(() => {
     const team1 = players.filter((player) => player.Team === Teams.TEAM1);
