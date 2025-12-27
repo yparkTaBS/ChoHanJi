@@ -161,7 +161,7 @@ export default function Page({
       );
     }
 
-    const capacity = focusPlayer?.ClassInfo.MovementSpeed ?? movementCapacityRef.current;
+    const capacity = focusPlayer?.ClassInfo?.MovementSpeed ?? movementCapacityRef.current ?? 0;
     movementCapacityRef.current = capacity;
     setMovementCapacity(capacity);
     setRemainingMovement(capacity);
