@@ -20,6 +20,10 @@ export type UpdateMessagePayload = {
   ItemChanges?: Record<string, ItemChangePayload>;
 };
 
+type EnvelopeLike = {
+  Message?: unknown;
+};
+
 const normalizeNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "") {
@@ -91,7 +95,13 @@ const parsePayload = (message: unknown): UpdateMessagePayload | null => {
 };
 
 export const parseUpdateMessage = (message: unknown) => {
-  const payload = parsePayload(message);
+  let payload = parsePayload(message);
+
+  if (!payload && message && typeof message === "object") {
+    // Some transports wrap the payload as { MessageType, Message }
+    const envelope = message as EnvelopeLike;
+    payload = parsePayload(envelope.Message);
+  }
 
   if (!payload) {
     return { playerChanges: [] as PlayerChangePayload[], itemChanges: [] as ItemChangePayload[] };
