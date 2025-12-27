@@ -133,6 +133,27 @@ export default class Engine {
     return grid;
   }
 
+  public GetChestItemsByTeam(): Record<Teams, Record<string, number>> {
+    const chestItems: Record<Teams, Record<string, number>> = {
+      [Teams.Neutral]: {},
+      [Teams.TEAM1]: {},
+      [Teams.TEAM2]: {},
+    };
+
+    for (const row of this.tiles) {
+      for (const tile of row) {
+        if (tile.Flag !== Flag.TREASURE_CHEST) continue;
+        const bucket = chestItems[tile.Team] ?? chestItems[Teams.Neutral];
+
+        for (const item of Object.values(tile.Items)) {
+          bucket[item.Name] = (bucket[item.Name] ?? 0) + 1;
+        }
+      }
+    }
+
+    return chestItems;
+  }
+
   private CreateGrid(height: number, width: number): [string, string, Flag, Teams][][] {
     let grid: [string, string, Flag, Teams][][] = []
     for (let y = 0; y < height; y++) {

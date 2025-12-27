@@ -21,41 +21,55 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid | null>();
   const [players, setPlayers] = useState<Player[]>([]);
   const [readyPlayers, setReadyPlayers] = useState<Set<string>>(new Set());
+  const [chestItems, setChestItems] = useState<Record<Teams, Record<string, number>>>({
+    [Teams.Neutral]: {},
+    [Teams.TEAM1]: {},
+    [Teams.TEAM2]: {},
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { roomId } = use(params);
 
   const grid = renderedGrid ?? [];
   const cols = grid[0]?.length ?? 0;
 
-  const handleUpdateMessage = useCallback((message: unknown) => {
+  const refreshChestItems = useCallback(() => {
     if (!engineRef.current) return;
-
-    const { playerChanges, itemChanges } = parseUpdateMessage(message);
-    const changes: Change[] = [
-      ...playerChanges.map(
-        (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Player", change.Id)
-      ),
-      ...itemChanges.map(
-        (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Item", change.ItemId)
-      ),
-    ];
-
-    if (changes.length) {
-      engineRef.current.Update(changes);
-    }
-    setRenderedGrid(engineRef.current.RenderAll());
-
-    if (playerChanges.length) {
-      const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
-      setPlayers((prev) =>
-        prev.map((player) => {
-          const update = playerChangeMap.get(player.Id);
-          if (!update) return player;
-          return { ...player, X: update.X, Y: update.Y };
-        })
-      );
-    }
+    setChestItems(engineRef.current.GetChestItemsByTeam());
   }, []);
+
+  const handleUpdateMessage = useCallback(
+    (message: unknown) => {
+      if (!engineRef.current) return;
+
+      const { playerChanges, itemChanges } = parseUpdateMessage(message);
+      const changes: Change[] = [
+        ...playerChanges.map(
+          (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Player", change.Id)
+        ),
+        ...itemChanges.map(
+          (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Item", change.ItemId)
+        ),
+      ];
+
+      if (changes.length) {
+        engineRef.current.Update(changes);
+      }
+      setRenderedGrid(engineRef.current.RenderAll());
+      refreshChestItems();
+
+      if (playerChanges.length) {
+        const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
+        setPlayers((prev) =>
+          prev.map((player) => {
+            const update = playerChangeMap.get(player.Id);
+            if (!update) return player;
+            return { ...player, X: update.X, Y: update.Y };
+          })
+        );
+      }
+    },
+    [refreshChestItems]
+  );
 
   useEffect(() => {
     const es = new EventSource(
@@ -92,6 +106,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
 
           engineRef.current = engine;
           setRenderedGrid(engine.RenderAll());
+          refreshChestItems();
           setPlayers(msgBody.Players ?? []);
           setReadyPlayers(new Set());
         }
@@ -162,6 +177,29 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     return players.every((player) => readyPlayers.has(player.Id));
   }, [players, readyPlayers]);
 
+  const renderChestItems = (team: Teams, title: string) => {
+    const items = chestItems[team] ?? {};
+    const entries = Object.entries(items);
+
+    return (
+      <div className="flex-1 rounded-lg border border-border bg-muted/30 p-3">
+        <div className={["mb-2 text-sm font-semibold", TeamTextClass(team)].join(" ")}>{title}</div>
+        <ul className="space-y-1 text-sm text-muted-foreground">
+          {entries.length > 0 ? (
+            entries.map(([name, count]) => (
+              <li key={name} className="flex items-center justify-between">
+                <span>{name}</span>
+                <span className="font-semibold text-foreground">x{count}</span>
+              </li>
+            ))
+          ) : (
+            <li className="italic text-muted-foreground">No items in chest</li>
+          )}
+        </ul>
+      </div>
+    );
+  };
+
   const renderTeam = (team: Teams, title: string, teamMembers: Player[]) => (
     <div className="flex-1 rounded-lg border border-border bg-muted/30 p-3">
       <div className={["mb-2 text-sm font-semibold", TeamTextClass(team)].join(" ")}>{title}</div>
@@ -230,6 +268,15 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
             <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 xl:flex-col">
               {renderTeam(Teams.TEAM1, "Team 1", teamPlayers.team1)}
               {renderTeam(Teams.TEAM2, "Team 2", teamPlayers.team2)}
+            </div>
+          </div>
+
+          {/* Chest items */}
+          <div className="flex min-w-[16rem] flex-1 flex-col gap-3 xl:max-w-xs">
+            <div className="text-sm font-semibold text-foreground">Chest Items</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 xl:flex-col">
+              {renderChestItems(Teams.TEAM1, "Team 1 Chest")}
+              {renderChestItems(Teams.TEAM2, "Team 2 Chest")}
             </div>
           </div>
         </div>
