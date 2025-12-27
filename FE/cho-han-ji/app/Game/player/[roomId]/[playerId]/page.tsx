@@ -116,36 +116,51 @@ export default function Page({
               style={{ gridTemplateColumns: `repeat(${cols ?? 0}, 5rem)` }}
             >
               {grid.flatMap((row, ri) =>
-                row.map(([playerNames, itemLabels, flag, team], ci) => (
-                  <div
-                    key={`${ri}-${ci}`}
-                    className={[
-                      "relative flex h-20 w-20 flex-col items-center justify-center gap-1 text-lg font-semibold",
-                      "border border-border -ml-px -mt-px",
-                      "transition-colors",
-                      TeamTileClass(team),
-                    ].join(" ")}
-                  >
-                    {flag === Flag.TREASURE_CHEST ? (
-                      <div className="absolute top-1 right-1">
-                        <Package className="h-4 w-4 text-amber-600/80 dark:text-amber-400/80" />
-                      </div>
-                    ) : null}
-                    {flag === Flag.SPAWN ? (
-                      <div className="absolute top-1 right-1">
-                        <FlagIcon className="h-4 w-4 text-amber-600/80 dark:text-amber-400/80" />
-                      </div>
-                    ) : null}
-                    <span className={["leading-none", TeamTextClass(team)].join(" ")}>
-                      {playerNames || "\u00a0"}
-                    </span>
-                    {itemLabels ? (
-                      <span className="text-xs font-normal text-muted-foreground leading-none">
-                        {itemLabels}
+                row.map(([playerNames, itemLabels, flag, team], ci) => {
+                  const isInaccessible = flag === Flag.INACCESSIBLE;
+                  const tileClasses = [
+                    "relative flex h-20 w-20 flex-col items-center justify-center gap-1 text-lg font-semibold",
+                    "border border-border -ml-px -mt-px",
+                    "transition-colors",
+                    isInaccessible ? "bg-black text-white" : TeamTileClass(team),
+                  ].join(" ");
+
+                  const playerNameClasses = [
+                    "leading-none",
+                    isInaccessible ? "text-white" : TeamTextClass(team),
+                  ].join(" ");
+
+                  const itemLabelClasses = [
+                    "text-xs font-normal leading-none",
+                    isInaccessible ? "text-white/80" : "text-muted-foreground",
+                  ].join(" ");
+
+                  return (
+                    <div
+                      key={`${ri}-${ci}`}
+                      className={tileClasses}
+                    >
+                      {flag === Flag.TREASURE_CHEST ? (
+                        <div className="absolute top-1 right-1">
+                          <Package className="h-4 w-4 text-amber-600/80 dark:text-amber-400/80" />
+                        </div>
+                      ) : null}
+                      {flag === Flag.SPAWN ? (
+                        <div className="absolute top-1 right-1">
+                          <FlagIcon className="h-4 w-4 text-amber-600/80 dark:text-amber-400/80" />
+                        </div>
+                      ) : null}
+                      <span className={playerNameClasses}>
+                        {playerNames || "\u00a0"}
                       </span>
-                    ) : null}
-                  </div>
-                ))
+                      {itemLabels ? (
+                        <span className={itemLabelClasses}>
+                          {itemLabels}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })
               )}
             </div>
           )}
