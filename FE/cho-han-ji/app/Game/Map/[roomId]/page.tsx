@@ -40,9 +40,9 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
       ),
     ];
 
-    if (!changes.length) return;
-
-    engineRef.current.Update(changes);
+    if (changes.length) {
+      engineRef.current.Update(changes);
+    }
     setRenderedGrid(engineRef.current.RenderAll());
 
     if (playerChanges.length) {

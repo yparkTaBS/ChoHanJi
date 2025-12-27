@@ -90,9 +90,9 @@ export default function Page({
         ),
       ];
 
-      if (!changes.length) return;
-
-      engineRef.current.Update(changes);
+      if (changes.length) {
+        engineRef.current.Update(changes);
+      }
 
       const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
       if (playerChangeMap.size) {
@@ -224,7 +224,7 @@ export default function Page({
       es.close();
       esRef.current = null;
     };
-  }, [playerId, roomId]);
+  }, [handleServerUpdate, playerId, roomId]);
 
   const showDirection = useCallback(
     (direction: Direction) => {
