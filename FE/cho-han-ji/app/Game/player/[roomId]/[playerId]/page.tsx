@@ -300,6 +300,12 @@ export default function Page({
                     row.map(([playerNames, itemLabels, flag, team], ci) => {
                       const isInaccessible = flag === Flag.INACCESSIBLE;
                       const isCenterTile = me && ri === centerPosition.r && ci === centerPosition.c;
+                      const visibleNames = (() => {
+                        if (!isCenterTile) return playerNames;
+                        if (!playerNames) return "";
+                        const parts = playerNames.split(",").map((p) => p.trim()).filter(Boolean);
+                        return parts.filter((p) => p !== me?.Name && p !== me?.Name?.[0]).join(",");
+                      })();
                       const tileClasses = [
                         "relative flex h-20 w-20 flex-col items-center justify-center gap-1 text-lg font-semibold",
                         "border border-border -ml-px -mt-px",
@@ -332,14 +338,14 @@ export default function Page({
                             <div className="absolute top-1 right-1">
                               <FlagIcon className="h-4 w-4 text-amber-600/80 dark:text-amber-400/80" />
                             </div>
-                          ) : null}
-                          <span className={playerNameClasses}>
-                            {isCenterTile ? "\u00a0" : (playerNames || "\u00a0")}
+                        ) : null}
+                        <span className={playerNameClasses}>
+                          {visibleNames || "\u00a0"}
+                        </span>
+                        {itemLabels ? (
+                          <span className={itemLabelClasses}>
+                            {itemLabels}
                           </span>
-                          {itemLabels ? (
-                            <span className={itemLabelClasses}>
-                              {itemLabels}
-                            </span>
                           ) : null}
                           {isCenterTile ? (
                             <span className="absolute bottom-1 right-1 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white shadow">
