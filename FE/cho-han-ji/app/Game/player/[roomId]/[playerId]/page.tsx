@@ -31,15 +31,18 @@ export default function Page({
   const [connected, setConnected] = useState(false);
   const engineRef = useRef<Engine | null>(null);
   const [mapSize, setMapSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const mapSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const [sightRadius, setSightRadius] = useState(2);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [movementCapacity, setMovementCapacity] = useState(0);
+  const movementCapacityRef = useRef(0);
   const [remainingMovement, setRemainingMovement] = useState(0);
   const [hasMoved, setHasMoved] = useState(false);
   const [hasAttacked, setHasAttacked] = useState(false);
   const [hasSkipped, setHasSkipped] = useState(false);
+  const meRef = useRef<PlayerInstance | null>(null);
 
   const { roomId, playerId } = use(params);
 
@@ -76,72 +79,98 @@ export default function Page({
     []
   );
 
-  const handleServerUpdate = useCallback(
-    (message: unknown) => {
-      if (!engineRef.current) return;
+  useEffect(() => {
+    meRef.current = me;
+  }, [me]);
 
-      const { playerChanges, itemChanges } = parseUpdateMessage(message);
-      const changes: Change[] = [
-        ...playerChanges.map(
-          (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Player", change.Id)
-        ),
-        ...itemChanges.map(
-          (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Item", change.ItemId)
-        ),
-      ];
+  useEffect(() => {
+    mapSizeRef.current = mapSize;
+  }, [mapSize]);
 
-      if (!changes.length) return;
+  useEffect(() => {
+    movementCapacityRef.current = movementCapacity;
+  }, [movementCapacity]);
 
+  const handleServerUpdate = useCallback((message: unknown) => {
+    if (!engineRef.current) return;
+
+    const { playerChanges, itemChanges } = parseUpdateMessage(message);
+    const changes: Change[] = [
+      ...playerChanges.map(
+        (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Player", change.Id)
+      ),
+      ...itemChanges.map(
+        (change) => new Change(change.X, change.Y, change.PrevX, change.PrevY, "Item", change.ItemId)
+      ),
+    ];
+
+    if (changes.length) {
       engineRef.current.Update(changes);
+    }
 
-      const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
-      if (playerChangeMap.size) {
-        setPlayers((prev) =>
-          prev.map((player) => {
-            const update = playerChangeMap.get(player.Id);
-            if (!update) return player;
-            return { ...player, X: update.X, Y: update.Y };
-          })
-        );
-      }
+    const playerChangeMap = new Map(playerChanges.map((change) => [change.Id, change]));
+    if (playerChangeMap.size) {
+      setPlayers((prev) =>
+        prev.map((player) => {
+          const update = playerChangeMap.get(player.Id);
+          if (!update) return player;
+          return { ...player, X: update.X, Y: update.Y };
+        })
+      );
+    }
 
-      if (itemChanges.length) {
-        setItems((prev) => {
-          const itemMap = new Map(prev.map((item) => [item.Id, item]));
-          for (const change of itemChanges) {
-            if (change.X === -1 && change.Y === -1) {
-              itemMap.delete(change.ItemId);
-              continue;
-            }
-
-            const existing = itemMap.get(change.ItemId);
-            if (existing) {
-              itemMap.set(change.ItemId, { ...existing, X: change.X, Y: change.Y });
-            }
+    if (itemChanges.length) {
+      setItems((prev) => {
+        const itemMap = new Map(prev.map((item) => [item.Id, item]));
+        for (const change of itemChanges) {
+          if (change.X === -1 && change.Y === -1) {
+            itemMap.delete(change.ItemId);
+            continue;
           }
-          return Array.from(itemMap.values());
-        });
-      }
 
-      let focusPlayer: PlayerInstance | null = me;
-      if (me) {
-        const myChange = playerChangeMap.get(me.Id);
-        if (myChange) {
-          focusPlayer = { ...me, CurrentX: myChange.X, CurrentY: myChange.Y, X: myChange.X, Y: myChange.Y };
-          setMe(focusPlayer);
+          const existing = itemMap.get(change.ItemId);
+          if (existing) {
+            itemMap.set(change.ItemId, { ...existing, X: change.X, Y: change.Y });
+          }
         }
-      }
+        return Array.from(itemMap.values());
+      });
+    }
 
-      if (focusPlayer) {
-        renderAroundPlayer(focusPlayer);
-      } else {
-        setRenderedGrid(
-          engineRef.current.RenderParts(0, 0, mapSize.height, mapSize.width, false)
-        );
+    let focusPlayer: PlayerInstance | null = meRef.current;
+    if (meRef.current) {
+      const myChange = playerChangeMap.get(meRef.current.Id);
+      if (myChange) {
+        focusPlayer = {
+          ...meRef.current,
+          CurrentX: myChange.X,
+          CurrentY: myChange.Y,
+          X: myChange.X,
+          Y: myChange.Y,
+        };
+        meRef.current = focusPlayer;
+        setMe(focusPlayer);
       }
-    },
-    [mapSize.height, mapSize.width, me, renderAroundPlayer]
-  );
+    }
+
+    if (focusPlayer) {
+      renderAroundPlayer(focusPlayer);
+    } else {
+      setRenderedGrid(
+        engineRef.current.RenderParts(0, 0, mapSizeRef.current.height, mapSizeRef.current.width, false)
+      );
+    }
+
+    const capacity = focusPlayer?.ClassInfo?.MovementSpeed ?? movementCapacityRef.current ?? 0;
+    movementCapacityRef.current = capacity;
+    setMovementCapacity(capacity);
+    setRemainingMovement(capacity);
+    setHasMoved(false);
+    setHasAttacked(false);
+    setHasSkipped(false);
+    setActionError(null);
+    setActionMessage(null);
+  }, [renderAroundPlayer]);
 
   useEffect(() => {
     const es = new EventSource(
@@ -149,12 +178,18 @@ export default function Page({
     );
     esRef.current = es;
 
-    es.onopen = () => console.log("SSE connected");
-    es.onmessage = (event) => {
-      console.log("SSE message:", event.data);
+    const handleEvent = (raw: string) => {
+      console.log("SSE message:", raw);
       try {
-        const data = JSON.parse(event.data) as { MessageType?: string; Message?: unknown };
-        if (!data.MessageType) return;
+        const data = JSON.parse(raw) as { MessageType?: string; Message?: unknown };
+        if (!data || typeof data !== "object") {
+          handleServerUpdate(raw);
+          return;
+        }
+        if (!data.MessageType) {
+          handleServerUpdate(data);
+          return;
+        }
         const baseMessage = new Message(data.MessageType);
 
         if (baseMessage.MessageType === "ping") {
@@ -167,7 +202,9 @@ export default function Page({
           const engine = new Engine(msgBody.MapWidth, msgBody.MapHeight);
           engine.Initialize(msgBody.Tiles ?? [], msgBody.Players ?? [], msgBody.Items ?? []);
           engineRef.current = engine;
-          setMapSize({ width: msgBody.MapWidth, height: msgBody.MapHeight });
+          const size = { width: msgBody.MapWidth, height: msgBody.MapHeight };
+          mapSizeRef.current = size;
+          setMapSize(size);
 
           const myPlayer = (msgBody.Players ?? []).find(p => p.Id === playerId);
           if (!myPlayer) {
@@ -175,6 +212,7 @@ export default function Page({
           }
 
           const myInstance = new PlayerInstance(myPlayer);
+          meRef.current = myInstance;
           setMe(myInstance);
 
           const otherPlayers = (msgBody.Players ?? []).filter(p => p.Id !== playerId);
@@ -184,6 +222,7 @@ export default function Page({
 
           const classMovement = myInstance.ClassInfo.MovementSpeed;
           setMovementCapacity(classMovement);
+          movementCapacityRef.current = classMovement;
           setRemainingMovement(classMovement);
           setHasMoved(false);
           setHasAttacked(false);
@@ -207,15 +246,24 @@ export default function Page({
         }
       } catch (error) {
         console.log("Failed to parse SSE message", error);
+        // If parsing fails, still attempt to handle as update payload.
+        handleServerUpdate(raw);
       }
     };
+
+    const updateListener = (event: MessageEvent) => handleEvent(event.data);
+
+    es.onopen = () => console.log("SSE connected");
+    es.onmessage = (event) => handleEvent(event.data);
+    es.addEventListener("Update", updateListener);
     es.onerror = (err) => console.log("SSE error", err);
 
     return () => {
+      es.removeEventListener("Update", updateListener);
       es.close();
       esRef.current = null;
     };
-  }, [playerId, roomId]);
+  }, [handleServerUpdate, playerId, roomId]);
 
   const showDirection = useCallback(
     (direction: Direction) => {

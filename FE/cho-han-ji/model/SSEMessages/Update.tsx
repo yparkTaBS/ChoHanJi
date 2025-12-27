@@ -20,6 +20,10 @@ export type UpdateMessagePayload = {
   ItemChanges?: Record<string, ItemChangePayload>;
 };
 
+type EnvelopeLike = {
+  Message?: unknown;
+};
+
 const normalizeNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "") {
@@ -72,12 +76,36 @@ const parseItemChange = (id: string, change: unknown): ItemChangePayload | null 
   };
 };
 
-export const parseUpdateMessage = (message: unknown) => {
-  if (!message || typeof message !== "object") {
-    return { playerChanges: [] as PlayerChangePayload[], itemChanges: [] as ItemChangePayload[] };
+const parsePayload = (message: unknown): UpdateMessagePayload | null => {
+  if (typeof message === "string") {
+    try {
+      const parsed = JSON.parse(message);
+      if (parsed && typeof parsed === "object") {
+        return parsed as UpdateMessagePayload;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
-  const payload = message as UpdateMessagePayload;
+  if (!message || typeof message !== "object") return null;
+
+  return message as UpdateMessagePayload;
+};
+
+export const parseUpdateMessage = (message: unknown) => {
+  let payload = parsePayload(message);
+
+  if (!payload && message && typeof message === "object") {
+    // Some transports wrap the payload as { MessageType, Message }
+    const envelope = message as EnvelopeLike;
+    payload = parsePayload(envelope.Message);
+  }
+
+  if (!payload) {
+    return { playerChanges: [] as PlayerChangePayload[], itemChanges: [] as ItemChangePayload[] };
+  }
 
   const playerChanges = Object.entries(payload.PlayerChanges ?? {})
     .map(([id, change]) => parsePlayerChange(id, change))
