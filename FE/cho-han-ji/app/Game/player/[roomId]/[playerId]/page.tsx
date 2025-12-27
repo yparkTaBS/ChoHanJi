@@ -178,11 +178,10 @@ export default function Page({
     );
     esRef.current = es;
 
-    es.onopen = () => console.log("SSE connected");
-    es.onmessage = (event) => {
-      console.log("SSE message:", event.data);
+    const handleEvent = (raw: string) => {
+      console.log("SSE message:", raw);
       try {
-        const data = JSON.parse(event.data) as { MessageType?: string; Message?: unknown };
+        const data = JSON.parse(raw) as { MessageType?: string; Message?: unknown };
         if (!data.MessageType) return;
         const baseMessage = new Message(data.MessageType);
 
@@ -242,9 +241,16 @@ export default function Page({
         console.log("Failed to parse SSE message", error);
       }
     };
+
+    const updateListener = (event: MessageEvent) => handleEvent(event.data);
+
+    es.onopen = () => console.log("SSE connected");
+    es.onmessage = (event) => handleEvent(event.data);
+    es.addEventListener("Update", updateListener);
     es.onerror = (err) => console.log("SSE error", err);
 
     return () => {
+      es.removeEventListener("Update", updateListener);
       es.close();
       esRef.current = null;
     };

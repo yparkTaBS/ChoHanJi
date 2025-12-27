@@ -64,10 +64,10 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     esRef.current = es;
 
     es.onopen = () => console.log("SSE connected");
-    es.onmessage = (event) => {
-      console.log("SSE raw:", event.data);
+    const handleEvent = (raw: string) => {
+      console.log("SSE raw:", raw);
       try {
-        const data = JSON.parse(event.data) as { MessageType: string; Message?: unknown };
+        const data = JSON.parse(raw) as { MessageType: string; Message?: unknown };
 
         const baseMessage = new Message(data.MessageType);
 
@@ -103,9 +103,15 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
         return;
       }
     };
+
+    const updateListener = (event: MessageEvent) => handleEvent(event.data);
+
+    es.onmessage = (event) => handleEvent(event.data);
+    es.addEventListener("Update", updateListener);
     es.onerror = (err) => console.log("SSE error", err);
 
     return () => {
+      es.removeEventListener("Update", updateListener);
       es.close();
       esRef.current = null;
     };
