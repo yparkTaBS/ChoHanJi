@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"ChoHanJi/domain/Action"
 	"ChoHanJi/domain/Room"
 	"ChoHanJi/driven/sse/SSEHub"
 	"ChoHanJi/drivers/http/handlers"
@@ -8,7 +9,11 @@ import (
 	"ChoHanJi/drivers/http/handlers/CreateRoom"
 	AdminGameStatus "ChoHanJi/drivers/http/handlers/GameStatus/Admin"
 	"ChoHanJi/drivers/http/handlers/PlayerRoom"
+	"ChoHanJi/drivers/http/handlers/SkipMove"
 	"ChoHanJi/drivers/http/handlers/StartGame"
+	"ChoHanJi/drivers/http/handlers/SubmitAttacks"
+	"ChoHanJi/drivers/http/handlers/SubmitBonusAttack"
+	"ChoHanJi/drivers/http/handlers/SubmitMoves"
 	"ChoHanJi/drivers/http/handlers/WaitingRoom"
 	"ChoHanJi/useCases/AdminWaitingRoomUseCase"
 	"ChoHanJi/useCases/CharacterFactory"
@@ -17,6 +22,7 @@ import (
 	"ChoHanJi/useCases/RoomFactory"
 	"ChoHanJi/useCases/RoomFactory/ports"
 	"ChoHanJi/useCases/StartGameUseCase"
+	"ChoHanJi/useCases/SubmitMoveUseCase"
 	"context"
 	"fmt"
 	"net/http"
@@ -114,6 +120,42 @@ func RegisterDrivers(ctx context.Context, builder *cb.ContainerBuilder) error {
 		return err
 	}
 
+	if err := builder.Register(
+		SubmitMoves.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTSubmitMoves)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		SubmitAttacks.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTSubmitAttacks)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		SubmitBonusAttack.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTSubmitBonusAttacks)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		SkipMove.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTSubmitSkip)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -166,6 +208,14 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 		return err
 	}
 
+	if err := builder.Register(
+		SubmitMoveUseCase.New,
+		o.AsSingleton,
+		o.As[SubmitMoveUseCase.Interface],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -176,6 +226,16 @@ func RegisterDomains(ctx context.Context, builder *cb.ContainerBuilder) error {
 	); err != nil {
 		return err
 	}
+
+	if err := builder.Register(
+		Action.New,
+		o.AsSingleton,
+		o.As[StartGameUseCase.IActionList],
+		o.As[SubmitMoveUseCase.IActionList],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -194,6 +254,7 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		SSEHub.New,
 		o.AsSingleton,
 		o.As[GameStatus.IHub],
+		o.As[SubmitMoveUseCase.IHub],
 	); err != nil {
 		return err
 	}

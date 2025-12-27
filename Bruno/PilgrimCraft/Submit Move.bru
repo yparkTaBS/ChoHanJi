@@ -1,0 +1,30 @@
+meta {
+  name: Submit Move
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://10.29.95.221:2000/api/game/move?roomId=d7234
+  body: json
+  auth: inherit
+}
+
+params:query {
+  roomId: d7234
+}
+
+body:json {
+  {
+    "X": 1,
+    "Y": 0,
+    "PrevX": 5,
+    "PrevY": 5,
+    "Id": "e0080"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

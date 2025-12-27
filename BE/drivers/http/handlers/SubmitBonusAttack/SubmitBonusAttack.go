@@ -1,4 +1,4 @@
-package SubmitMoves
+package SubmitBonusAttack
 
 import (
 	"ChoHanJi/domain/Action"
@@ -51,7 +51,7 @@ func (s *Struct) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.uc.Submit(Room.Id(roomId), Action.Move, request); err != nil {
+	if err := s.uc.Submit(Room.Id(roomId), Action.BonusAttack, request); err != nil {
 		switch {
 		case errors.Is(err, SubmitMoveUseCase.ErrWrongInput):
 			sendBack400(ctx, w, logger, "Wrong Submission", err)

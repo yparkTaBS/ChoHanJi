@@ -40,10 +40,13 @@ func CreateEndPoints(container gi.Container, config *PilgrimCraftConfig.PilgrimC
 	r.Mount("/api/room/waiting/admin", RegisterAdminWaitingRoom(container, handlers.GETRoomAdmin, origin))
 	r.Mount(string(handlers.POSTGameStart), RegisterPOSTGameStart(container, handlers.POSTGameStart, origin))
 
-	r.Mount(string(handlers.GETAdminGameStatus), RegisterEndPoint(container, GET, string(handlers.GETAdminGameStatus), origin))
-	r.Mount(string(handlers.GETPlayerGameStatus), RegisterEndPoint(container, GET, string(handlers.GETPlayerGameStatus), origin))
+	r.Mount(string(handlers.GETAdminGameStatus), RegisterGETEndPoint(container, string(handlers.GETAdminGameStatus), origin))
+	r.Mount(string(handlers.GETPlayerGameStatus), RegisterGETEndPoint(container, string(handlers.GETPlayerGameStatus), origin))
 
-	r.Mount(string(handlers.POSTSubmitMoves), RegisterEndPoint(container, POST, string(handlers.POSTSubmitMoves), origin))
+	r.Mount(string(handlers.POSTSubmitMoves), RegisterPOSTEndPoint(container, string(handlers.POSTSubmitMoves), origin))
+	r.Mount(string(handlers.POSTSubmitAttacks), RegisterPOSTEndPoint(container, string(handlers.POSTSubmitAttacks), origin))
+	r.Mount(string(handlers.POSTSubmitBonusAttacks), RegisterPOSTEndPoint(container, string(handlers.POSTSubmitBonusAttacks), origin))
+	r.Mount(string(handlers.POSTSubmitSkip), RegisterPOSTEndPoint(container, string(handlers.POSTSubmitSkip), origin))
 
 	return r, nil
 }
@@ -252,28 +255,60 @@ func RegisterGETGameStatus(container gi.Container, route, origin string) *chi.Mu
 	return r
 }
 
-func RegisterEndPoint(container gi.Container, verb, route, origin string) *chi.Mux {
+func RegisterGETEndPoint(container gi.Container, route, origin string) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(JobNameAttacher.New(fmt.Sprintf("%s %s", verb, route)))
+	r.Use(JobNameAttacher.New(fmt.Sprintf("%s %s", GET, route)))
 	r.Use(LoggerAttacher.New())
 	r.Use(GenericPanicCatcher.New())
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
-		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s", verb, OPTIONS))
+		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s", GET, OPTIONS))
 
 		context := r.Context()
 		logger, err := Logging.RetrieveLogger(context)
 		if err != nil {
-			slog.ErrorContext(context, fmt.Sprintf("%s %s: Could not retrieve logger from the context", verb, route))
+			slog.ErrorContext(context, fmt.Sprintf("%s %s: Could not retrieve logger from the context", GET, route))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
 		if err != nil {
-			logger.ErrorContext(context, fmt.Sprintf("%s %s: Could not resolve handler", verb, route), slog.Any("Error", err))
+			logger.ErrorContext(context, fmt.Sprintf("%s %s: Could not resolve handler", GET, route), slog.Any("Error", err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler.ServeHTTP(w, r)
+	})
+
+	return r
+}
+
+func RegisterPOSTEndPoint(container gi.Container, route, origin string) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(JobNameAttacher.New(fmt.Sprintf("%s %s", POST, route)))
+	r.Use(LoggerAttacher.New())
+	r.Use(GenericPanicCatcher.New())
+
+	r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Accept")
+		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s", POST, OPTIONS))
+
+		context := r.Context()
+		logger, err := Logging.RetrieveLogger(context)
+		if err != nil {
+			slog.ErrorContext(context, fmt.Sprintf("%s %s: Could not retrieve logger from the context", POST, route))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		handler, err := GoFac.ResolveNamed[http.Handler](container, context, string(route))
+		if err != nil {
+			logger.ErrorContext(context, fmt.Sprintf("%s %s: Could not resolve handler", POST, route), slog.Any("Error", err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

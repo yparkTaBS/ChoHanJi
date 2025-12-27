@@ -1,0 +1,26 @@
+meta {
+  name: Submit Skip
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://10.29.95.221:2000/api/game/skip?roomId=b6cb9
+  body: json
+  auth: inherit
+}
+
+params:query {
+  roomId: b6cb9
+}
+
+body:json {
+  {
+    "Id": "c5721"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

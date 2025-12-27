@@ -1,4 +1,4 @@
-package SubmitMoves
+package SkipMove
 
 import (
 	"ChoHanJi/domain/Action"
@@ -11,19 +11,16 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-
-	"github.com/go-playground/validator/v10"
 )
 
 type Struct struct {
-	uc        SubmitMoveUseCase.Interface
-	validator *validator.Validate
+	uc SubmitMoveUseCase.Interface
 }
 
 var _ http.Handler = (*Struct)(nil)
 
-func New(uc SubmitMoveUseCase.Interface, validator *validator.Validate) *Struct {
-	return &Struct{uc, validator}
+func New(uc SubmitMoveUseCase.Interface) *Struct {
+	return &Struct{uc}
 }
 
 // ServeHTTP implements http.Handler.
@@ -51,7 +48,7 @@ func (s *Struct) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.uc.Submit(Room.Id(roomId), Action.Move, request); err != nil {
+	if err := s.uc.Submit(Room.Id(roomId), Action.Skip, request); err != nil {
 		switch {
 		case errors.Is(err, SubmitMoveUseCase.ErrWrongInput):
 			sendBack400(ctx, w, logger, "Wrong Submission", err)

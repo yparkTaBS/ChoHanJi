@@ -1,10 +1,24 @@
 package StartGameUseCase
 
 import (
+	"ChoHanJi/domain/Action"
 	"ChoHanJi/domain/Room"
 	"ChoHanJi/driven/sse/SSEHub"
 	"encoding/json"
 	"errors"
+)
+
+type IActionList interface {
+	StartGame(roomId Room.Id)
+}
+
+type IHub interface {
+	PublishToAll(roomId, messageType, messageBody string) error
+}
+
+var (
+	_ IActionList = (*Action.List)(nil)
+	_ IHub        = (*SSEHub.SSEHub)(nil)
 )
 
 type Interface interface {
@@ -13,19 +27,14 @@ type Interface interface {
 
 type Struct struct {
 	rooms Room.Rooms
+	list  IActionList
 	hub   IHub
 }
 
 var _ Interface = (*Struct)(nil)
 
-type IHub interface {
-	PublishToAll(roomId, messageType, messageBody string) error
-}
-
-var _ IHub = (*SSEHub.SSEHub)(nil)
-
-func New(rooms Room.Rooms, hub IHub) *Struct {
-	return &Struct{rooms, hub}
+func New(rooms Room.Rooms, list IActionList, hub IHub) *Struct {
+	return &Struct{rooms, list, hub}
 }
 
 // Announce implements IStartGameUseCase.
@@ -55,6 +64,8 @@ func (s *Struct) Announce(roomId string) error {
 	if err := s.hub.PublishToAll(roomId, "GameStart", string(msg)); err != nil {
 		return err
 	}
+
+	s.list.StartGame(Room.Id(roomId))
 
 	return nil
 }

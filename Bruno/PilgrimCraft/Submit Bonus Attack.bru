@@ -1,0 +1,28 @@
+meta {
+  name: Submit Bonus Attack
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://10.29.95.221:2000/api/game/bonusAttack?roomId=6e37d
+  body: json
+  auth: inherit
+}
+
+params:query {
+  roomId: 6e37d
+}
+
+body:json {
+  {
+    "X": 0,
+    "Y": 0,
+    "Id": "a4ab7"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Teams } from "@/model/Tile";
 import DirectionalControls, { Direction } from "@/components/DirectionalControls";
+import { useRouter } from "next/navigation";
 
 type Mode = "move" | "attack";
 
@@ -79,6 +80,7 @@ export default function CharacterPage({
     const engine = new Engine(MAP_WIDTH, MAP_HEIGHT);
     return engine.RenderParts(0, 0, MAP_WIDTH, MAP_HEIGHT, false);
   });
+  const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("move");
 
@@ -278,7 +280,10 @@ export default function CharacterPage({
 
     es.onopen = () => console.log("SSE connected");
     es.onmessage = (event) => console.log("SSE message:", event.data);
-    es.onerror = (err) => console.log("SSE error", err);
+    es.onerror = (err) => {
+      console.log(err)
+      router.back();
+    }
 
     return () => {
       es.close();
@@ -381,19 +386,19 @@ export default function CharacterPage({
 
       <CardContent className="space-y-6">
         {/* Tutorial (kept) */}
-            <Card className="border-muted">
-              <CardHeader>
-                <CardTitle className="text-base">Tutorial</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  <strong>Move Mode:</strong> Tap the arrows that appear around your
-                  token on the map to move immediately.
-                </p>
-                <p>
-                  <strong>Attack Mode:</strong> Tap an adjacent arrow next to an enemy
-                  to attack.
-                </p>
+        <Card className="border-muted">
+          <CardHeader>
+            <CardTitle className="text-base">Tutorial</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              <strong>Move Mode:</strong> Tap the arrows that appear around your
+              token on the map to move immediately.
+            </p>
+            <p>
+              <strong>Attack Mode:</strong> Tap an adjacent arrow next to an enemy
+              to attack.
+            </p>
             <p>
               <strong>Order of Actions:</strong> Attack move will always happen
               first, followed by the normal movement, bonus movement, bonus
