@@ -10,12 +10,18 @@ import Item from "@/model/Item";
 import Player, { PlayerClass, PlayerInstance } from "@/model/Player";
 import { Message } from "@/model/SSEMessage";
 import { GameConnected } from "@/model/SSEMessages/GameConnected";
-import { Flag } from "@/model/Tile";
-import { Flag as FlagIcon, Package } from "lucide-react";
+import { Flag, Teams } from "@/model/Tile";
+import { Flag as FlagIcon, Package, Sword } from "lucide-react";
 import Change from "@/model/Change";
 import { Button } from "@/components/ui/button";
 
 type RenderedGrid = ReturnType<Engine["RenderAll"]>;
+const DELTAS: Record<Direction, [number, number]> = {
+  up: [0, -1],
+  down: [0, 1],
+  left: [-1, 0],
+  right: [1, 0],
+};
 
 export default function Page({
   params,
@@ -150,14 +156,7 @@ export default function Page({
       if (!me || !grid.length || hasAttacked || remainingMovement <= 0) return false;
       if (hasSkipped) return false;
 
-      const deltas: Record<Direction, [number, number]> = {
-        up: [0, -1],
-        down: [0, 1],
-        left: [-1, 0],
-        right: [1, 0],
-      };
-
-      const [dx, dy] = deltas[direction];
+      const [dx, dy] = DELTAS[direction];
       const targetX = me.CurrentX + dx;
       const targetY = me.CurrentY + dy;
 
@@ -196,14 +195,7 @@ export default function Page({
       }
       if (!showDirection(direction)) return;
 
-      const deltas: Record<Direction, [number, number]> = {
-        up: [0, -1],
-        down: [0, 1],
-        left: [-1, 0],
-        right: [1, 0],
-      };
-
-      const [dx, dy] = deltas[direction];
+      const [dx, dy] = DELTAS[direction];
       const targetX = me.CurrentX + dx;
       const targetY = me.CurrentY + dy;
 
@@ -234,10 +226,10 @@ export default function Page({
           }
         );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(errorText || `Failed to submit move (${response.status})`);
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to submit move (${response.status})`);
+      }
 
         engineRef.current.Update([
           new Change(targetX, targetY, me.CurrentX, me.CurrentY, "Player", me.Id),
@@ -306,6 +298,122 @@ export default function Page({
       setIsSubmitting(false);
     }
   }, [me, roomId]);
+
+  const getAttackTarget = useCallback(
+    (direction: Direction) => {
+      if (!me) return null;
+
+      const [dx, dy] = DELTAS[direction];
+      const targetX = me.CurrentX + dx;
+      const targetY = me.CurrentY + dy;
+
+      if (targetX < 0 || targetY < 0 || targetX >= mapSize.width || targetY >= mapSize.height) {
+        return null;
+      }
+
+      const targetTile = grid[centerPosition.r + dy]?.[centerPosition.c + dx];
+      if (!targetTile) return null;
+
+      const [, , targetFlag, targetTeam] = targetTile;
+      const enemyPlayer = players.find(
+        (player) => player.X === targetX && player.Y === targetY && player.Team !== me.Team
+      );
+      const enemyChest = targetFlag === Flag.TREASURE_CHEST && targetTeam !== Teams.Neutral && targetTeam !== me.Team;
+
+      if (enemyPlayer) {
+        return { type: "player" as const, targetId: enemyPlayer.Id, coords: { x: targetX, y: targetY } };
+      }
+
+      if (enemyChest) {
+        return { type: "chest" as const, coords: { x: targetX, y: targetY } };
+      }
+
+      return null;
+    },
+    [centerPosition.c, centerPosition.r, grid, mapSize.height, mapSize.width, me, players]
+  );
+
+  const canAttackDirection = useCallback(
+    (direction: Direction) => {
+      if (!me || hasAttacked || hasSkipped) return false;
+      if (hasMoved) return false;
+
+      return !!getAttackTarget(direction);
+    },
+    [getAttackTarget, hasAttacked, hasMoved, hasSkipped, me]
+  );
+
+  const handleAttack = useCallback(
+    async (direction: Direction) => {
+      if (!me) return;
+
+      if (hasSkipped) {
+        setActionError("You have already skipped this turn.");
+        return;
+      }
+
+      if (hasAttacked) {
+        setActionError("You have already attacked this turn.");
+        return;
+      }
+
+      if (hasMoved) {
+        setActionError("You cannot attack after moving.");
+        return;
+      }
+
+      const target = getAttackTarget(direction);
+      if (!target) {
+        setActionError("No valid target to attack in that direction.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      setActionError(null);
+      setActionMessage(null);
+
+      try {
+        const isPlayerTarget = target.type === "player";
+        const endpoint = isPlayerTarget ? "attack" : "bonusAttack";
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/${endpoint}?roomId=${roomId}`,
+          {
+            method: "POST",
+            body: JSON.stringify(
+              isPlayerTarget
+                ? {
+                  AttackerId: me.Id,
+                  DefenderId: target.targetId,
+                }
+                : {
+                  X: target.coords.x,
+                  Y: target.coords.y,
+                  Id: me.Id,
+                }
+            ),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to submit attack (${response.status})`);
+        }
+
+        setHasAttacked(true);
+        setRemainingMovement(0);
+        setActionMessage(
+          target.type === "player"
+            ? "Attack submitted against the enemy player."
+            : "Attack submitted against the enemy treasure chest."
+        );
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "Failed to process attack");
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [getAttackTarget, hasAttacked, hasMoved, hasSkipped, me, roomId]
+  );
 
   return (
     <main className="mx-auto w-full max-w-4xl p-6">
@@ -399,6 +507,54 @@ export default function Page({
                   />
                 ) : null}
               </div>
+
+              {me ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Sword className="h-4 w-4" />
+                    <span>Attack</span>
+                  </div>
+                  <div className="grid w-fit grid-cols-3 gap-2">
+                    <div />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isSubmitting || !canAttackDirection("up")}
+                      onClick={() => handleAttack("up")}
+                    >
+                      Attack ↑
+                    </Button>
+                    <div />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isSubmitting || !canAttackDirection("left")}
+                      onClick={() => handleAttack("left")}
+                    >
+                      Attack ←
+                    </Button>
+                    <div />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isSubmitting || !canAttackDirection("right")}
+                      onClick={() => handleAttack("right")}
+                    >
+                      Attack →
+                    </Button>
+                    <div />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={isSubmitting || !canAttackDirection("down")}
+                      onClick={() => handleAttack("down")}
+                    >
+                      Attack ↓
+                    </Button>
+                    <div />
+                  </div>
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap items-center gap-3 text-sm">
                 <Button
