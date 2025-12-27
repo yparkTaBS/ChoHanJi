@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Engine from "@/controller/Engine";
 import Change from "@/model/Change";
 import { useOddEvenGame } from "@/controller/Games/OddEvenGame";
@@ -53,6 +54,35 @@ function isSameTile(a: { r: number; c: number }, b: { r: number; c: number }) {
   return a.r === b.r && a.c === b.c;
 }
 
+type GameStartPayload = {
+  RoomId?: string;
+  MapHeight?: number;
+  MapWidth?: number;
+  MapWeidth?: number;
+};
+
+function parseGameStartMessage(message: unknown): GameStartPayload | null {
+  if (!message) return null;
+
+  if (typeof message === "string") {
+    const trimmed = message.trim();
+    const normalized = trimmed.startsWith("{") ? trimmed : `{${trimmed.replace(/^\{|\}$/g, "")}}`;
+
+    try {
+      return JSON.parse(normalized) as GameStartPayload;
+    } catch (error) {
+      console.log("Failed to parse GameStart message", error);
+      return null;
+    }
+  }
+
+  if (typeof message === "object") {
+    return message as GameStartPayload;
+  }
+
+  return null;
+}
+
 function computeEnemyMove(enemy: { r: number; c: number }) {
   // Deduction: enemy movement is 1 random step in-bounds
   const dirs = shuffle(ENEMY_DIRS);
@@ -70,7 +100,9 @@ export default function CharacterPage({
 }: {
   params: Promise<{ roomId: string; characterId: string }>;
 }) {
+  const router = useRouter();
   const esRef = useRef<EventSource | null>(null);
+  const navigatedToGame = useRef(false);
   const engineRef = useRef<Engine | null>(null);
   const playerRef = useRef<Player | null>(null);
   const enemyRef = useRef<Player | null>(null);
@@ -277,14 +309,31 @@ export default function CharacterPage({
     esRef.current = es;
 
     es.onopen = () => console.log("SSE connected");
-    es.onmessage = (event) => console.log("SSE message:", event.data);
+    es.onmessage = (event) => {
+      console.log("SSE message:", event.data);
+
+      try {
+        const data = JSON.parse(event.data) as { MessageType: string; Message?: unknown };
+
+        if (data.MessageType === "GameStart" && !navigatedToGame.current) {
+          const payload = parseGameStartMessage(data.Message);
+          if (!payload) return;
+
+          const targetRoom = payload.RoomId ?? roomId;
+          navigatedToGame.current = true;
+          router.push(`/Game/player/${targetRoom}/${characterId}`);
+        }
+      } catch (err) {
+        console.log("Failed to handle SSE message", err);
+      }
+    };
     es.onerror = (err) => console.log("SSE error", err);
 
     return () => {
       es.close();
       esRef.current = null;
     };
-  }, [roomId, characterId]);
+  }, [characterId, roomId, router]);
 
   // NEW: directional buttons should be disabled in attack mode unless enemy occupies that block
   const disableDir = useCallback(
