@@ -224,7 +224,6 @@ export default function Page({
           `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/move?roomId=${roomId}`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               X: targetX,
               Y: targetY,
@@ -277,17 +276,16 @@ export default function Page({
   );
 
   const handleSkip = useCallback(async () => {
-      if (!me) return;
-      setIsSubmitting(true);
-      setActionError(null);
-      setActionMessage(null);
+    if (!me) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    setActionMessage(null);
 
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/skip?roomId=${roomId}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ Id: me.Id }),
         }
       );
@@ -372,14 +370,14 @@ export default function Page({
                             <div className="absolute top-1 right-1">
                               <FlagIcon className="h-4 w-4 text-amber-600/80 dark:text-amber-400/80" />
                             </div>
-                        ) : null}
-                        <span className={playerNameClasses}>
-                          {visibleNames || "\u00a0"}
-                        </span>
-                        {itemLabels ? (
-                          <span className={itemLabelClasses}>
-                            {itemLabels}
+                          ) : null}
+                          <span className={playerNameClasses}>
+                            {visibleNames || "\u00a0"}
                           </span>
+                          {itemLabels ? (
+                            <span className={itemLabelClasses}>
+                              {itemLabels}
+                            </span>
                           ) : null}
                           {isCenterTile ? (
                             <span className="absolute bottom-1 right-1 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white shadow">
