@@ -265,8 +265,14 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 
 	for _, tile := range tiles {
 		// skip special
-		if tile.Flag == TileFlag.SPAWN || tile.Flag == TileFlag.TREASURE_CHEST {
+		if tile.Flag == TileFlag.SPAWN {
 			continue
+		}
+
+		if tile.Player[0].TeamNumber != int(tile.Team) {
+			if err := fm.Map.DisperseItems(Team.Enum(tile.Team)); err != nil {
+				return err
+			}
 		}
 
 		if len(tile.Player) < 2 {
