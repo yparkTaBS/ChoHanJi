@@ -156,9 +156,13 @@ export default function Page({
       const targetRow = centerPosition.r + dy;
       const targetCol = centerPosition.c + dx;
 
-      const targetFlag = grid[targetRow]?.[targetCol]?.[2];
+      const targetTile = grid[targetRow]?.[targetCol];
+      if (!targetTile) return false;
 
-      return targetFlag !== undefined && targetFlag !== Flag.INACCESSIBLE;
+      const [playerNames, , targetFlag, targetTeam] = targetTile;
+      const hasBlockingEnemy = !!playerNames && targetTeam !== me.Team;
+
+      return targetFlag !== Flag.INACCESSIBLE && !hasBlockingEnemy;
     },
     [centerPosition.c, centerPosition.r, grid, mapSize.height, mapSize.width, me]
   );
@@ -184,6 +188,14 @@ export default function Page({
       setActionMessage(null);
 
       try {
+        const targetTile = grid[centerPosition.r + dy]?.[centerPosition.c + dx];
+        const [playerNames, , , targetTeam] = targetTile ?? [];
+
+        if (playerNames && targetTeam !== me.Team) {
+          setActionError("An opposing player is blocking that tile.");
+          return;
+        }
+
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/move?roomId=${roomId}`,
           {
@@ -289,11 +301,13 @@ export default function Page({
                   {grid.flatMap((row, ri) =>
                     row.map(([playerNames, itemLabels, flag, team], ci) => {
                       const isInaccessible = flag === Flag.INACCESSIBLE;
+                      const isCenterTile = me && ri === centerPosition.r && ci === centerPosition.c;
                       const tileClasses = [
                         "relative flex h-20 w-20 flex-col items-center justify-center gap-1 text-lg font-semibold",
                         "border border-border -ml-px -mt-px",
                         "transition-colors",
                         isInaccessible ? "bg-black text-white" : TeamTileClass(team),
+                        isCenterTile ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-background" : "",
                       ].join(" ");
 
                       const playerNameClasses = [
@@ -327,6 +341,11 @@ export default function Page({
                           {itemLabels ? (
                             <span className={itemLabelClasses}>
                               {itemLabels}
+                            </span>
+                          ) : null}
+                          {isCenterTile ? (
+                            <span className="absolute bottom-1 right-1 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white shadow">
+                              You
                             </span>
                           ) : null}
                         </div>
