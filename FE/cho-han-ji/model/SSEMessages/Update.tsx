@@ -94,14 +94,27 @@ const parsePayload = (message: unknown): UpdateMessagePayload | null => {
   return message as UpdateMessagePayload;
 };
 
-export const parseUpdateMessage = (message: unknown) => {
-  let payload = parsePayload(message);
+const unwrapEnvelope = (value: unknown): UpdateMessagePayload | null => {
+  let current = parsePayload(value);
 
-  if (!payload && message && typeof message === "object") {
-    // Some transports wrap the payload as { MessageType, Message }
-    const envelope = message as EnvelopeLike;
-    payload = parsePayload(envelope.Message);
+  // Unwrap envelopes like { MessageType, Message } until we reach a payload
+  // that actually contains the change collections.
+  for (let depth = 0; depth < 3 && current; depth += 1) {
+    if (current.PlayerChanges || current.ItemChanges) break;
+    if (!("Message" in current)) break;
+
+    const envelope = current as EnvelopeLike;
+    const next = parsePayload(envelope.Message);
+    if (!next || next === current) break;
+
+    current = next;
   }
+
+  return current;
+};
+
+export const parseUpdateMessage = (message: unknown) => {
+  const payload = unwrapEnvelope(message);
 
   if (!payload) {
     return { playerChanges: [] as PlayerChangePayload[], itemChanges: [] as ItemChangePayload[] };
