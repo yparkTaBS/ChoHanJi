@@ -20,7 +20,7 @@ type IHub interface {
 	Publish(roomId, adminId, messageType, messageBody string) error
 }
 
-var _ IHub = (*SSEHub.SSEHub)(nil)
+var _ IHub = (*SSEHub.Struct)(nil)
 
 var ErrNotFound error = errors.New("not found")
 

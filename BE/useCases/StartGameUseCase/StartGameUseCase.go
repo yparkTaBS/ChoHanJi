@@ -18,7 +18,7 @@ type IHub interface {
 
 var (
 	_ IActionList = (*Action.List)(nil)
-	_ IHub        = (*SSEHub.SSEHub)(nil)
+	_ IHub        = (*SSEHub.Struct)(nil)
 )
 
 type Interface interface {

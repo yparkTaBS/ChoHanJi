@@ -125,7 +125,7 @@ func (g *UseCase) getConnectedMessage(room *Room.Room) ([]byte, error) {
 	message := Messages.ConnectedMessage{
 		MapHeight: height,
 		MapWidth:  width,
-		Tiles:     room.Map.GetRelevantTiles(),
+		Tiles:     room.Map.GetSpecialTiles(),
 		Players:   players,
 		Items:     items,
 	}

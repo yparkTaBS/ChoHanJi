@@ -12,18 +12,18 @@ type Message struct {
 	Message     string `json:"Message"`
 }
 
-type SSEHub struct {
+type Struct struct {
 	mu      sync.RWMutex
 	clients map[string]map[string]chan []byte
 }
 
-func New() *SSEHub {
-	return &SSEHub{
+func New() *Struct {
+	return &Struct{
 		clients: make(map[string]map[string]chan []byte),
 	}
 }
 
-func (h *SSEHub) Subscribe(roomId, subscriberId string) <-chan []byte {
+func (h *Struct) Subscribe(roomId, subscriberId string) <-chan []byte {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -44,7 +44,7 @@ func (h *SSEHub) Subscribe(roomId, subscriberId string) <-chan []byte {
 	return ch
 }
 
-func (h *SSEHub) Unsubscribe(roomId, subscriberId string) error {
+func (h *Struct) Unsubscribe(roomId, subscriberId string) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -68,7 +68,7 @@ func (h *SSEHub) Unsubscribe(roomId, subscriberId string) error {
 	return nil
 }
 
-func (h *SSEHub) Publish(roomId, subscriberId, messageType, messageBody string) error {
+func (h *Struct) Publish(roomId, subscriberId, messageType, messageBody string) error {
 	message := Message{messageType, messageBody}
 
 	msg, err := json.Marshal(message)
@@ -99,7 +99,7 @@ func (h *SSEHub) Publish(roomId, subscriberId, messageType, messageBody string) 
 	return nil
 }
 
-func (h *SSEHub) PublishToAll(roomId, messageType string, messageBody string) error {
+func (h *Struct) PublishToAll(roomId, messageType string, messageBody string) error {
 	message := Message{messageType, messageBody}
 
 	msg, err := json.Marshal(message)

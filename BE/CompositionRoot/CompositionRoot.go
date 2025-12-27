@@ -48,6 +48,8 @@ func CreateEndPoints(container gi.Container, config *PilgrimCraftConfig.PilgrimC
 	r.Mount(string(handlers.POSTSubmitBonusAttacks), RegisterPOSTEndPoint(container, string(handlers.POSTSubmitBonusAttacks), origin))
 	r.Mount(string(handlers.POSTSubmitSkip), RegisterPOSTEndPoint(container, string(handlers.POSTSubmitSkip), origin))
 
+	r.Mount(string(handlers.POSTProceed), RegisterPOSTEndPoint(container, string(handlers.POSTProceed), origin))
+
 	return r, nil
 }
 

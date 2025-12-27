@@ -28,7 +28,7 @@ type IHub interface {
 	Publish(roomId, subscriberId, messageType, messageBody string) error
 }
 
-var _ IHub = (*SSEHub.SSEHub)(nil)
+var _ IHub = (*SSEHub.Struct)(nil)
 
 var _ IActionList = (*Action.List)(nil)
 
@@ -50,7 +50,7 @@ func (s *Struct) Submit(roomId Room.Id, actionType Action.Enum, msg []byte) erro
 
 	switch actionType {
 	case Action.Attack:
-		var attackAction Action.AttackAction
+		var attackAction Action.AttackStruct
 		if err := json.Unmarshal(msg, &attackAction); err != nil {
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w: %v", ErrWrongInput, err)
 		}
@@ -63,7 +63,7 @@ func (s *Struct) Submit(roomId Room.Id, actionType Action.Enum, msg []byte) erro
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w", err)
 		}
 	case Action.Move:
-		var move Action.MoveAction
+		var move Action.MoveStruct
 		if err := json.Unmarshal(msg, &move); err != nil {
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w: %v", ErrWrongInput, err)
 		}
@@ -76,7 +76,7 @@ func (s *Struct) Submit(roomId Room.Id, actionType Action.Enum, msg []byte) erro
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w", err)
 		}
 	case Action.BonusAttack:
-		var action Action.BonusAttackAction
+		var action Action.BonusAttackStruct
 		if err := json.Unmarshal(msg, &action); err != nil {
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w: %v", ErrWrongInput, err)
 		}
@@ -89,7 +89,7 @@ func (s *Struct) Submit(roomId Room.Id, actionType Action.Enum, msg []byte) erro
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w", err)
 		}
 	case Action.Skip:
-		var skip Action.SkipAction
+		var skip Action.SkipStruct
 		if err := json.Unmarshal(msg, &skip); err != nil {
 			return fmt.Errorf("SubmitMoveUseCase.Submit: %w: %v", ErrWrongInput, err)
 		}

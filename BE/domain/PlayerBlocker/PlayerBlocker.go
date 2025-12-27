@@ -52,6 +52,29 @@ func (s *Struct) Block(roomId Room.Id, playerId Player.Id) error {
 	return nil
 }
 
+func (s *Struct) BlockPair(roomId Room.Id, p1, p2 Player.Id) error {
+	location := "PlayerBlocker.BlockPair"
+
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	room, found := s.actionBlocker[roomId]
+	if !found {
+		return fmt.Errorf("%s: Room %w", location, ErrNotFound)
+	}
+
+	if _, ok := room[p1]; ok {
+		return fmt.Errorf("%s: %w", location, ErrAlreadyBlocked)
+	}
+	if _, ok := room[p2]; ok {
+		return fmt.Errorf("%s: %w", location, ErrAlreadyBlocked)
+	}
+
+	room[p1] = make(chan struct{})
+	room[p2] = make(chan struct{})
+	return nil
+}
+
 func (s *Struct) Unblock(roomId Room.Id, playerId Player.Id) error {
 	location := "PlayerBlocker.Unblock"
 
@@ -71,6 +94,29 @@ func (s *Struct) Unblock(roomId Room.Id, playerId Player.Id) error {
 	s.lock.Unlock()
 
 	close(player)
+
+	return nil
+}
+
+func (s *Struct) UnblockAllChannels(roomId Room.Id) error {
+	location := "PlayerBlocker.UnblockAllChannels"
+
+	s.lock.RLock()
+	room, found := s.actionBlocker[roomId]
+	if !found {
+		s.lock.RUnlock()
+		return fmt.Errorf("%s: Room %w", location, ErrNotFound)
+	}
+
+	playerIds := make([]Player.Id, 0, len(room))
+	for pid := range room {
+		playerIds = append(playerIds, pid)
+	}
+	s.lock.RUnlock()
+
+	for _, pid := range playerIds {
+		_ = s.Unblock(roomId, pid)
+	}
 
 	return nil
 }
@@ -98,24 +144,25 @@ func (s *Struct) WaitUntilUnblocked(roomId Room.Id, playerId Player.Id) error {
 	return nil
 }
 
-func (s *Struct) UnblockAllChannels(roomId Room.Id) error {
-	location := "PlayerBlocker.UnblockAllChannels"
+func (s *Struct) WaitUntilAllAreUnblocked(roomId Room.Id) error {
+	location := "PlayerBlocker.WaitUntilAllAreUnblocked"
 
 	s.lock.RLock()
+
 	room, found := s.actionBlocker[roomId]
 	if !found {
 		s.lock.RUnlock()
 		return fmt.Errorf("%s: Room %w", location, ErrNotFound)
 	}
 
-	playerIds := make([]Player.Id, 0, len(room))
-	for pid := range room {
-		playerIds = append(playerIds, pid)
+	var players []chan struct{}
+	for _, ch := range room {
+		players = append(players, ch)
 	}
 	s.lock.RUnlock()
 
-	for _, pid := range playerIds {
-		_ = s.Unblock(roomId, pid)
+	for _, ch := range players {
+		<-ch
 	}
 
 	return nil

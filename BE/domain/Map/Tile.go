@@ -30,6 +30,21 @@ func (t *Tile) AddPlayer(player *Player.Struct) {
 	t.Player = append(t.Player, player)
 }
 
-func (t *Tile) IsRelevant() bool {
+func (t *Tile) IsSpecial() bool {
 	return t.Flag != TileFlag.EMPTY
+}
+
+func (t *Tile) IsNotEmpty() bool {
+	return len(t.Player) != 0 || len(t.Items) != 0
+}
+
+func (t *Tile) RemovePlayer(playerId Player.Id) {
+	for i, pl := range t.Player {
+		if pl.Id == playerId {
+			last := len(t.Player) - 1
+			t.Player[i] = t.Player[last]
+			t.Player = t.Player[:last]
+			return
+		}
+	}
 }

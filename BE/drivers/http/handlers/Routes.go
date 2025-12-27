@@ -14,4 +14,5 @@ var (
 	POSTSubmitAttacks      RouteToken = "/api/game/attack"
 	POSTSubmitBonusAttacks RouteToken = "/api/game/bonusAttack"
 	POSTSubmitSkip         RouteToken = "/api/game/skip"
+	POSTProceed            RouteToken = "/api/game/proceed"
 )

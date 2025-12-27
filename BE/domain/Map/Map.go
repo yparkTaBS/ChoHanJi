@@ -40,22 +40,18 @@ func NewMap(width, height int, items []*Item.Struct) (*Map, error) {
 	fieldMap.tiles[1][height-2].Flag = TileFlag.SPAWN
 	fieldMap.tiles[1][height-2].Team = Team.Team2
 
-	// Add items if provided
+	empty := fieldMap.getEmptyTileCoords()
+	if len(empty) == 0 && len(items) > 0 {
+		return nil, errors.New("no empty tiles available for item placement")
+	}
+
 	for _, item := range items {
-		for {
-			x := rand.Intn(width)
-			y := rand.Intn(height)
+		xy := empty[rand.Intn(len(empty))]
+		x, y := xy[0], xy[1]
 
-			if fieldMap.tiles[x][y].Flag != TileFlag.EMPTY {
-				continue
-			}
-
-			item.X = x
-			item.Y = y
-
-			fieldMap.tiles[x][y].AddItem(item)
-			break
-		}
+		item.X = x
+		item.Y = y
+		fieldMap.tiles[x][y].AddItem(item)
 	}
 
 	return fieldMap, nil
@@ -132,15 +128,90 @@ func (m *Map) GetTile(x, y int) (*Tile, error) {
 	return m.tiles[x][y], nil
 }
 
-func (m *Map) GetRelevantTiles() []*Tile {
+func (m *Map) GetSpecialTiles() []*Tile {
 	var tiles []*Tile
 	for row := range m.tiles {
 		for column := range m.tiles[row] {
 			tile := m.tiles[row][column]
-			if tile.IsRelevant() {
+			if tile.IsSpecial() {
 				tiles = append(tiles, tile)
 			}
 		}
 	}
 	return tiles
+}
+
+func (m *Map) GetNonEmptyTiles() []*Tile {
+	var tiles []*Tile
+	for row := range m.tiles {
+		for column := range m.tiles[row] {
+			tile := m.tiles[row][column]
+			if tile.IsNotEmpty() {
+				tiles = append(tiles, tile)
+			}
+		}
+	}
+	return tiles
+}
+
+func (m *Map) GetSpawn(team Team.Enum) (int, int) {
+	width, _ := m.GetMapWidth()
+	height, _ := m.GetMapHeight()
+	if team == Team.Team1 {
+		return width - 2, 1
+	} else {
+		return 1, height - 2
+	}
+}
+
+func (m *Map) GetTeamTreasureChestLocation(team Team.Enum) (int, int) {
+	width, _ := m.GetMapWidth()
+	height, _ := m.GetMapHeight()
+	if team == Team.Team1 {
+		return 1, 1
+	} else {
+		return width - 2, height - 2
+	}
+}
+
+func (m *Map) DisperseItems(team Team.Enum) error {
+	x, y := m.GetTeamTreasureChestLocation(team)
+	tile, err := m.GetTile(x, y)
+	if err != nil {
+		return err
+	}
+
+	items := tile.Items
+	if len(items) == 0 {
+		return nil
+	}
+
+	empty := m.getEmptyTileCoords()
+	if len(empty) == 0 {
+		return errors.New("no empty tiles available for dispersing items")
+	}
+
+	for _, item := range items {
+		xy := empty[rand.Intn(len(empty))]
+		x, y := xy[0], xy[1]
+
+		item.X = x
+		item.Y = y
+		m.tiles[x][y].AddItem(item)
+	}
+
+	tile.Items = tile.Items[:0]
+	return nil
+}
+
+func (m *Map) getEmptyTileCoords() [][2]int {
+	var coords [][2]int
+	for x := range m.tiles {
+		for y := range m.tiles[x] {
+			if m.tiles[x][y].Flag == TileFlag.EMPTY {
+				coords = append(coords, [2]int{x, y})
+			}
+		}
+	}
+	return coords
 }

@@ -17,7 +17,7 @@ type IHub interface {
 	Unsubscribe(roomId, subscriberId string) error
 }
 
-var _ IHub = (*SSEHub.SSEHub)(nil)
+var _ IHub = (*SSEHub.Struct)(nil)
 
 type UseCaseInterface interface {
 	ConnectAndListen(ctx context.Context, w io.Writer, roomId string, flusher http.Flusher) error
