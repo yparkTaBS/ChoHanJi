@@ -56,7 +56,6 @@ func (p *PlayerWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 
 	ch := p.roomHub.Subscribe(roomId, playerId)
 	defer func() {
-		logger.Error("PlayerWaitingRoomUseCase.ConnectAndListen: Unsubscribing...")
 		if err := p.roomHub.Unsubscribe(roomId, playerId); err != nil {
 			logger.Error("PlayerWaitingRoomUseCase.ConnectAndListen:Error Unsubscribing", slog.Any("Error", err))
 		}
