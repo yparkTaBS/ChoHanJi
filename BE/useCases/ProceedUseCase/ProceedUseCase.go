@@ -18,6 +18,7 @@ type ActionList interface {
 	GetAttackActionList(roomId Room.Id) ([]Action.AttackStruct, error)
 	GetMoveActionList(roomId Room.Id) ([]Action.MoveStruct, error)
 	GetBonusAttackList(roomId Room.Id) ([]Action.BonusAttackStruct, error)
+	Reset(roomId Room.Id) error
 }
 
 var _ ActionList = (*Action.List)(nil)
@@ -49,6 +50,9 @@ func New(al ActionList, ap ActionProcessor, pb IPlayerBlocker) *Struct {
 
 // Proceed implements Interface.
 func (s *Struct) Proceed(ctx context.Context, roomId string, logger *slog.Logger) error {
+	defer func() {
+		_ = s.al.Reset(Room.Id(roomId))
+	}()
 	logger = logger.With("ProceedUseCase")
 
 	id := Room.Id(roomId)
