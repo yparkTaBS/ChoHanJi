@@ -10,6 +10,7 @@ import (
 	AdminGameStatus "ChoHanJi/drivers/http/handlers/GameStatus/Admin"
 	PlayerGameStatus "ChoHanJi/drivers/http/handlers/GameStatus/Player"
 	"ChoHanJi/drivers/http/handlers/PlayerRoom"
+	"ChoHanJi/drivers/http/handlers/Proceed"
 	"ChoHanJi/drivers/http/handlers/SkipMove"
 	"ChoHanJi/drivers/http/handlers/StartGame"
 	"ChoHanJi/drivers/http/handlers/SubmitAttacks"
@@ -20,6 +21,7 @@ import (
 	"ChoHanJi/useCases/CharacterFactory"
 	"ChoHanJi/useCases/GameStatus"
 	"ChoHanJi/useCases/PlayerWaitingRoomUseCase"
+	"ChoHanJi/useCases/ProceedUseCase"
 	"ChoHanJi/useCases/RoomFactory"
 	"ChoHanJi/useCases/RoomFactory/ports"
 	"ChoHanJi/useCases/StartGameUseCase"
@@ -166,6 +168,15 @@ func RegisterDrivers(ctx context.Context, builder *cb.ContainerBuilder) error {
 		return err
 	}
 
+	if err := builder.Register(
+		Proceed.New,
+		o.AsSingleton,
+		o.Named(string(handlers.POSTProceed)),
+		o.As[http.Handler],
+	); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -222,6 +233,14 @@ func RegisterUseCases(ctx context.Context, builder *cb.ContainerBuilder) error {
 		SubmitMoveUseCase.New,
 		o.AsSingleton,
 		o.As[SubmitMoveUseCase.Interface],
+	); err != nil {
+		return err
+	}
+
+	if err := builder.Register(
+		ProceedUseCase.New,
+		o.AsSingleton,
+		o.As[ProceedUseCase.Interface],
 	); err != nil {
 		return err
 	}
