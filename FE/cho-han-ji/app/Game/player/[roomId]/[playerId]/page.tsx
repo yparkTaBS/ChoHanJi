@@ -220,6 +220,26 @@ export default function Page({
           return;
         }
 
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/move?roomId=${roomId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              X: targetX,
+              Y: targetY,
+              PrevX: me.CurrentX,
+              PrevY: me.CurrentY,
+              Id: me.Id,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `Failed to submit move (${response.status})`);
+        }
+
         engineRef.current.Update([
           new Change(targetX, targetY, me.CurrentX, me.CurrentY, "Player", me.Id),
         ]);
@@ -253,7 +273,7 @@ export default function Page({
         setIsSubmitting(false);
       }
     },
-    [hasAttacked, hasSkipped, me, remainingMovement, renderAroundPlayer, showDirection]
+    [hasAttacked, hasSkipped, me, remainingMovement, renderAroundPlayer, roomId, showDirection]
   );
 
   const handleSkip = useCallback(async () => {
@@ -263,17 +283,31 @@ export default function Page({
       setActionMessage(null);
 
     try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/skip?roomId=${roomId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ Id: me.Id }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to skip turn (${response.status})`);
+      }
+
       setHasMoved(false);
       setHasAttacked(true);
       setRemainingMovement(0);
       setHasSkipped(true);
-      setActionMessage("Turn skipped locally");
+      setActionMessage("Turn skipped");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to skip turn");
     } finally {
       setIsSubmitting(false);
     }
-  }, [me, movementCapacity, roomId]);
+  }, [me, roomId]);
 
   return (
     <main className="mx-auto w-full max-w-4xl p-6">
