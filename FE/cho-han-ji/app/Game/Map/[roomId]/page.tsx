@@ -21,6 +21,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid | null>();
   const [players, setPlayers] = useState<Player[]>([]);
   const [readyPlayers, setReadyPlayers] = useState<Set<string>>(new Set());
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { roomId } = use(params);
 
   const grid = renderedGrid ?? [];
@@ -110,6 +111,27 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     };
   }, [handleUpdateMessage, roomId]);
 
+  const handleSubmit = useCallback(async () => {
+    try {
+      setIsSubmitting(true);
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/proceed?roomId=${roomId}`,
+        {
+          method: "POST",
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Submit failed: ${res.status}`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [roomId]);
+
   const teamPlayers = useMemo(() => {
     const team1 = players.filter((player) => player.Team === Teams.TEAM1);
     const team2 = players.filter((player) => player.Team === Teams.TEAM2);
@@ -148,8 +170,8 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     <Card className="w-full max-w-full">
       <CardHeader className="space-y-3">
         <CardTitle>Map</CardTitle>
-        <Button disabled={!allReady} className="w-fit">
-          Submit
+        <Button disabled={!allReady || isSubmitting} className="w-fit" onClick={handleSubmit}>
+          {isSubmitting ? "Submitting..." : "Submit"}
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
