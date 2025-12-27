@@ -69,7 +69,7 @@ func (p *PlayerWaitingRoomUseCase) ConnectAndListen(ctx context.Context, w io.Wr
 	}
 	flusher.Flush()
 
-	if err := p.roomHub.Publish(roomId, "admin", "PlayerConnected", fmt.Sprintf(`{"id":"%s","name":"%s"}`, playerId, player.Name)); err != nil {
+	if err := p.roomHub.Publish(roomId, "admin", "PlayerConnected", fmt.Sprintf(`{"id":"%s","name":"%s","team":%d}`, playerId, player.Name, player.TeamNumber)); err != nil {
 		logger.ErrorContext(ctx, "PlayerWaitingRoomUseCase.ConnectAndListen: Could not announce player connected message", slog.Any("Error", err))
 		return fmt.Errorf("could not publish PlayerConnected message. PlayerId: %s", player.Id)
 	}
