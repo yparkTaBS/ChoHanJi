@@ -215,7 +215,7 @@ export default function Page({
       es.close();
       esRef.current = null;
     };
-  }, [handleServerUpdate, playerId, roomId]);
+  }, [playerId, roomId]);
 
   const showDirection = useCallback(
     (direction: Direction) => {
