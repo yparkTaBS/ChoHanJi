@@ -222,12 +222,12 @@ export default function Page({
         setMe((current) =>
           current
             ? {
-                ...current,
-                CurrentX: targetX,
-                CurrentY: targetY,
-                X: targetX,
-                Y: targetY,
-              }
+              ...current,
+              CurrentX: targetX,
+              CurrentY: targetY,
+              X: targetX,
+              Y: targetY,
+            }
             : current
         );
 
@@ -345,7 +345,7 @@ export default function Page({
                           ) : null}
                           {isCenterTile ? (
                             <span className="absolute bottom-1 right-1 rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white shadow">
-                              You
+                              Self
                             </span>
                           ) : null}
                         </div>
@@ -360,7 +360,6 @@ export default function Page({
                     onSelect={handleMove}
                     position={centerPosition}
                     showDirection={showDirection}
-                    centerLabel={isSubmitting ? "..." : "You"}
                   />
                 ) : null}
               </div>

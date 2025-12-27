@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 export type Direction = "up" | "down" | "left" | "right";
 
 type DirectionalControlsProps = {
-  centerLabel?: string;
   gridSize: { rows: number; cols: number };
   onSelect: (dir: Direction) => void;
   position: { r: number; c: number };
@@ -13,7 +12,6 @@ type DirectionalControlsProps = {
 };
 
 export default function DirectionalControls({
-  centerLabel = "You",
   gridSize,
   onSelect,
   position,
@@ -72,21 +70,6 @@ export default function DirectionalControls({
           </Button>
         </div>
       ) : null}
-
-      {/* Center marker */}
-      <div
-        className="pointer-events-none flex items-center justify-center p-1"
-        style={{
-          gridColumnStart: position.c + 1,
-          gridColumnEnd: position.c + 2,
-          gridRowStart: position.r + 1,
-          gridRowEnd: position.r + 2,
-        }}
-      >
-        <div className="flex h-full items-center justify-center rounded-md border border-dashed text-xs font-medium text-muted-foreground">
-          {centerLabel}
-        </div>
-      </div>
 
       {/* Right */}
       {showDirection("right") ? (
