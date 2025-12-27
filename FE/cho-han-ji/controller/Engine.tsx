@@ -41,19 +41,45 @@ export default class Engine {
 
   public Update(changes: Change[]) {
     for (const change of changes) {
-      const prevTile = this.tiles[change.PrevY][change.PrevX];
+      const prevTile =
+        change.PrevX >= 0 &&
+        change.PrevY >= 0 &&
+        change.PrevY < this.tiles.length &&
+        change.PrevX < this.tiles[0].length
+          ? this.tiles[change.PrevY][change.PrevX]
+          : null;
+
+      const nextTile =
+        change.X >= 0 &&
+        change.Y >= 0 &&
+        change.Y < this.tiles.length &&
+        change.X < this.tiles[0].length
+          ? this.tiles[change.Y][change.X]
+          : null;
+
       if (change.X === -1 && change.Y === -1) {
-        delete prevTile.Items[change.Id];
+        if (prevTile) {
+          if (change.ObjectType === "Player") {
+            delete prevTile.Players[change.Id];
+          } else if (change.ObjectType === "Item") {
+            delete prevTile.Items[change.Id];
+          }
+        }
         continue;
       }
 
-      const tile = this.tiles[change.Y][change.X]
+      if (!nextTile) continue;
+
       if (change.ObjectType === "Player") {
-        delete prevTile.Players[change.Id];
-        tile.Players[change.Id] = this.players[change.Id];
+        if (prevTile) {
+          delete prevTile.Players[change.Id];
+        }
+        nextTile.Players[change.Id] = this.players[change.Id];
       } else if (change.ObjectType === "Item") {
-        delete prevTile.Items[change.Id];
-        tile.Items[change.Id] = this.items[change.Id];
+        if (prevTile) {
+          delete prevTile.Items[change.Id];
+        }
+        nextTile.Items[change.Id] = this.items[change.Id];
       }
     }
   }
