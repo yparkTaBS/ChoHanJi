@@ -333,7 +333,6 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.As[AdminWaitingRoomUseCase.IHub],
 		o.As[PlayerWaitingRoomUseCase.IHub],
 		o.As[StartGameUseCase.IHub],
-		o.As[SubmitFightResultUseCase.IHub],
 	); err != nil {
 		return err
 	}
@@ -344,6 +343,7 @@ func RegisterDriven(ctx context.Context, builder *cb.ContainerBuilder) error {
 		o.As[GameStatus.IHub],
 		o.As[SubmitMoveUseCase.IHub],
 		o.As[Action.IHub],
+		o.As[SubmitFightResultUseCase.IHub],
 	); err != nil {
 		return err
 	}
