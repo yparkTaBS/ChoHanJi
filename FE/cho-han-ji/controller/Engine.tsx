@@ -63,10 +63,6 @@ export default class Engine {
   }
 
   public RenderParts(startX: number, startY: number, height: number, width: number, condensed: boolean): [string, string, Flag, Teams][][] {
-    if (startX < 0 || startY < 0) {
-      throw new Error("Index out of Range");
-    }
-
     const grid = this.CreateGrid(width, height);
 
     const maxY = this.tiles.length;

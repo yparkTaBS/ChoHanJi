@@ -2,9 +2,9 @@ import Item from "./Item";
 import { Teams } from "./Tile";
 
 export enum PlayerClass {
-  Fighter = 0,
-  Archer = 1,
-  Rogue = 2
+  Fighter = "fighter",
+  Archer = "ranger",
+  Thief = "thief"
 }
 
 class Class {
@@ -27,7 +27,7 @@ class Class {
       return new Fighter()
     } else if (c === PlayerClass.Archer) {
       return new Archer()
-    } else if (c === PlayerClass.Rogue) {
+    } else if (c === PlayerClass.Thief) {
       return new Thief()
     } else {
       throw new Error("Class Not defined")

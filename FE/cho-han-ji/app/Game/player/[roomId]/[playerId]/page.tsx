@@ -6,7 +6,7 @@ import TeamTileClass from "@/components/ui/TeamTileClass";
 import TeamTextClass from "@/components/ui/TeamTextClass";
 import Engine from "@/controller/Engine";
 import Item from "@/model/Item";
-import Player, { PlayerInstance } from "@/model/Player";
+import Player, { PlayerClass, PlayerInstance } from "@/model/Player";
 import { Message } from "@/model/SSEMessage";
 import { GameConnected } from "@/model/SSEMessages/GameConnected";
 import { Flag } from "@/model/Tile";
@@ -48,31 +48,34 @@ export default function Page({
 
         if (baseMessage.MessageType === "Connection") {
           const msgBody = data.Message as GameConnected;
+
           const engine = new Engine(msgBody.MapWidth, msgBody.MapHeight);
           engine.Initialize(msgBody.Tiles ?? [], msgBody.Players ?? [], msgBody.Items ?? []);
 
-          var playerToRemove: Player | null = null;
-          for (const player of msgBody.Players) {
-            if (player.Id === playerId) {
-              playerToRemove = player
-              setMe(new PlayerInstance(player));
-              msgBody.Players.push(me as Player);
-              break;
-            }
+          const myPlayer = (msgBody.Players ?? []).find(p => p.Id === playerId);
+          if (!myPlayer) {
+            throw new Error("I'm not in the game?");
           }
 
-          var indexToRemove = msgBody.Players.indexOf(playerToRemove ?? {} as Player)
-          if (indexToRemove !== -1) {
-            msgBody.Players.splice(indexToRemove, 1); // Remove 1 element at that index
-          } else {
-            throw new Error("I'm not in the game?")
-          }
+          const myInstance = new PlayerInstance(myPlayer);
+          setMe(myInstance);
 
-
-          setRenderedGrid(engine.RenderAll());
-          setPlayers(msgBody.Players ?? []);
+          const otherPlayers = (msgBody.Players ?? []).filter(p => p.Id !== playerId);
+          setPlayers(otherPlayers);
           setItems(msgBody.Items ?? []);
           setConnected(true);
+
+          const sight = myInstance.Class === PlayerClass.Thief ? 3 : 2;
+
+          setRenderedGrid(
+            engine.RenderParts(
+              myInstance.CurrentX - sight,
+              myInstance.CurrentY - sight,
+              myInstance.CurrentX + sight,
+              myInstance.CurrentY + sight,
+              false
+            )
+          );
         }
       } catch (error) {
         console.log("Failed to parse SSE message", error);
