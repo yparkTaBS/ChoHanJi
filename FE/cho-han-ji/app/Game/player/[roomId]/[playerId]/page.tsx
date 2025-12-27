@@ -43,80 +43,6 @@ export default function Page({
 
   const { roomId, playerId } = use(params);
 
-  useEffect(() => {
-    const es = new EventSource(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/player?roomId=${roomId}&playerId=${playerId}`
-    );
-    esRef.current = es;
-
-    es.onopen = () => console.log("SSE connected");
-    es.onmessage = (event) => {
-      console.log("SSE message:", event.data);
-      try {
-        const data = JSON.parse(event.data) as { MessageType?: string; Message?: unknown };
-        if (!data.MessageType) return;
-        const baseMessage = new Message(data.MessageType);
-
-        if (baseMessage.MessageType === "ping") {
-          return;
-        }
-
-        if (baseMessage.MessageType === "Connection") {
-          const msgBody = data.Message as GameConnected;
-
-          const engine = new Engine(msgBody.MapWidth, msgBody.MapHeight);
-          engine.Initialize(msgBody.Tiles ?? [], msgBody.Players ?? [], msgBody.Items ?? []);
-          engineRef.current = engine;
-          setMapSize({ width: msgBody.MapWidth, height: msgBody.MapHeight });
-
-          const myPlayer = (msgBody.Players ?? []).find(p => p.Id === playerId);
-          if (!myPlayer) {
-            throw new Error("I'm not in the game?");
-          }
-
-          const myInstance = new PlayerInstance(myPlayer);
-          setMe(myInstance);
-
-          const otherPlayers = (msgBody.Players ?? []).filter(p => p.Id !== playerId);
-          setPlayers(otherPlayers);
-          setItems(msgBody.Items ?? []);
-          setConnected(true);
-
-          const classMovement = myInstance.ClassInfo.MovementSpeed;
-          setMovementCapacity(classMovement);
-          setRemainingMovement(classMovement);
-          setHasMoved(false);
-          setHasAttacked(false);
-          setHasSkipped(false);
-          const sight = myInstance.Class === PlayerClass.Thief ? 3 : 2;
-          setSightRadius(sight);
-
-          setRenderedGrid(
-            engine.RenderParts(
-              myInstance.CurrentX - sight,
-              myInstance.CurrentY - sight,
-              2 * sight + 1,
-              2 * sight + 1,
-              false
-            )
-          );
-        }
-
-        if (baseMessage.MessageType === "Update") {
-          handleServerUpdate(data.Message);
-        }
-      } catch (error) {
-        console.log("Failed to parse SSE message", error);
-      }
-    };
-    es.onerror = (err) => console.log("SSE error", err);
-
-    return () => {
-      es.close();
-      esRef.current = null;
-    };
-  }, [handleServerUpdate, playerId, roomId]);
-
   const grid = renderedGrid ?? [];
   const cols = grid[0]?.length ?? 0;
   const currentPlayer = useMemo(
@@ -216,6 +142,80 @@ export default function Page({
     },
     [mapSize.height, mapSize.width, me, renderAroundPlayer]
   );
+
+  useEffect(() => {
+    const es = new EventSource(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/player?roomId=${roomId}&playerId=${playerId}`
+    );
+    esRef.current = es;
+
+    es.onopen = () => console.log("SSE connected");
+    es.onmessage = (event) => {
+      console.log("SSE message:", event.data);
+      try {
+        const data = JSON.parse(event.data) as { MessageType?: string; Message?: unknown };
+        if (!data.MessageType) return;
+        const baseMessage = new Message(data.MessageType);
+
+        if (baseMessage.MessageType === "ping") {
+          return;
+        }
+
+        if (baseMessage.MessageType === "Connection") {
+          const msgBody = data.Message as GameConnected;
+
+          const engine = new Engine(msgBody.MapWidth, msgBody.MapHeight);
+          engine.Initialize(msgBody.Tiles ?? [], msgBody.Players ?? [], msgBody.Items ?? []);
+          engineRef.current = engine;
+          setMapSize({ width: msgBody.MapWidth, height: msgBody.MapHeight });
+
+          const myPlayer = (msgBody.Players ?? []).find(p => p.Id === playerId);
+          if (!myPlayer) {
+            throw new Error("I'm not in the game?");
+          }
+
+          const myInstance = new PlayerInstance(myPlayer);
+          setMe(myInstance);
+
+          const otherPlayers = (msgBody.Players ?? []).filter(p => p.Id !== playerId);
+          setPlayers(otherPlayers);
+          setItems(msgBody.Items ?? []);
+          setConnected(true);
+
+          const classMovement = myInstance.ClassInfo.MovementSpeed;
+          setMovementCapacity(classMovement);
+          setRemainingMovement(classMovement);
+          setHasMoved(false);
+          setHasAttacked(false);
+          setHasSkipped(false);
+          const sight = myInstance.Class === PlayerClass.Thief ? 3 : 2;
+          setSightRadius(sight);
+
+          setRenderedGrid(
+            engine.RenderParts(
+              myInstance.CurrentX - sight,
+              myInstance.CurrentY - sight,
+              2 * sight + 1,
+              2 * sight + 1,
+              false
+            )
+          );
+        }
+
+        if (baseMessage.MessageType === "Update") {
+          handleServerUpdate(data.Message);
+        }
+      } catch (error) {
+        console.log("Failed to parse SSE message", error);
+      }
+    };
+    es.onerror = (err) => console.log("SSE error", err);
+
+    return () => {
+      es.close();
+      esRef.current = null;
+    };
+  }, [handleServerUpdate, playerId, roomId]);
 
   const showDirection = useCallback(
     (direction: Direction) => {
