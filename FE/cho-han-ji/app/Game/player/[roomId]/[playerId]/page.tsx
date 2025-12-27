@@ -6,7 +6,7 @@ import TeamTileClass from "@/components/ui/TeamTileClass";
 import TeamTextClass from "@/components/ui/TeamTextClass";
 import Engine from "@/controller/Engine";
 import Item from "@/model/Item";
-import Player from "@/model/Player";
+import Player, { PlayerInstance } from "@/model/Player";
 import { Message } from "@/model/SSEMessage";
 import { GameConnected } from "@/model/SSEMessages/GameConnected";
 import { Flag } from "@/model/Tile";
@@ -22,7 +22,7 @@ export default function Page({
   const esRef = useRef<EventSource | null>(null);
   const [renderedGrid, setRenderedGrid] = useState<RenderedGrid | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [me, setMe] = useState<Player | null>(null);
+  const [me, setMe] = useState<PlayerInstance | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [connected, setConnected] = useState(false);
 
@@ -51,11 +51,23 @@ export default function Page({
           const engine = new Engine(msgBody.MapWidth, msgBody.MapHeight);
           engine.Initialize(msgBody.Tiles ?? [], msgBody.Players ?? [], msgBody.Items ?? []);
 
+          var playerToRemove: Player | null = null;
           for (const player of msgBody.Players) {
             if (player.Id === playerId) {
-              setMe(player)
+              playerToRemove = player
+              setMe(new PlayerInstance(player));
+              msgBody.Players.push(me as Player);
+              break;
             }
           }
+
+          var indexToRemove = msgBody.Players.indexOf(playerToRemove ?? {} as Player)
+          if (indexToRemove !== -1) {
+            msgBody.Players.splice(indexToRemove, 1); // Remove 1 element at that index
+          } else {
+            throw new Error("I'm not in the game?")
+          }
+
 
           setRenderedGrid(engine.RenderAll());
           setPlayers(msgBody.Players ?? []);
