@@ -141,7 +141,7 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 			continue
 		}
 
-		if err := p.startFight(roomId, attackerId, defenderId); err != nil {
+		if _, err := p.startFight(roomId, attackerId, defenderId); err != nil {
 			return err
 		}
 	}
@@ -240,7 +240,7 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 			continue
 		}
 
-		if err := p.startFight(roomId, attackerId, defenderId); err != nil {
+		if _, err := p.startFight(roomId, attackerId, defenderId); err != nil {
 			return err
 		}
 	}
@@ -381,7 +381,12 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 				continue
 			}
 
-			if err := p.startFight(roomId, champ, challenger); err != nil {
+			fight, err := p.startFight(roomId, champ, challenger)
+			if err != nil {
+				return err
+			}
+
+			if err := p.broadcastFight(roomId, fight); err != nil {
 				return err
 			}
 
@@ -505,51 +510,60 @@ func getRandomGame() (Game.Type, error) {
 	return Game.List[int(nBig.Int64())], nil
 }
 
-func (p *Processor) startFight(roomId Room.Id, attackerId, defenderId Player.Id) error {
+func (p *Processor) startFight(roomId Room.Id, attackerId, defenderId Player.Id) (*Fight.Struct, error) {
 	if err := p.pb.WaitUntilUnblocked(roomId, attackerId); err != nil {
-		return err
+		return nil, err
 	}
 	if err := p.pb.WaitUntilUnblocked(roomId, defenderId); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := p.pb.BlockPair(roomId, attackerId, defenderId); err != nil {
-		return err
+		return nil, err
 	}
 
 	game, err := getRandomGame()
 	if err != nil {
 		_ = p.pb.Unblock(roomId, attackerId)
 		_ = p.pb.Unblock(roomId, defenderId)
-		return err
+		return nil, err
 	}
 
 	fight, err := p.cf.Create(roomId, game, attackerId, defenderId)
 	if err != nil {
 		_ = p.pb.Unblock(roomId, attackerId)
 		_ = p.pb.Unblock(roomId, defenderId)
-		return err
+		return nil, err
 	}
 
 	msg, err := json.Marshal(fight)
 	if err != nil {
 		_ = p.pb.Unblock(roomId, attackerId)
 		_ = p.pb.Unblock(roomId, defenderId)
-		return err
+		return nil, err
 	}
 
 	if err := p.hub.Publish(string(roomId), string(attackerId), "Fight", string(msg)); err != nil {
 		_ = p.pb.Unblock(roomId, attackerId)
 		_ = p.pb.Unblock(roomId, defenderId)
-		return err
+		return nil, err
 	}
 	if err := p.hub.Publish(string(roomId), string(defenderId), "Fight", string(msg)); err != nil {
 		_ = p.pb.Unblock(roomId, attackerId)
 		_ = p.pb.Unblock(roomId, defenderId)
+		return nil, err
+	}
+
+	return fight, nil
+}
+
+func (p *Processor) broadcastFight(roomId Room.Id, fight *Fight.Struct) error {
+	msg, err := json.Marshal(fight)
+	if err != nil {
 		return err
 	}
 
-	return nil
+	return p.hub.PublishToAll(string(roomId), "Fight", string(msg))
 }
 
 func randIndex(n int) (int, error) {
