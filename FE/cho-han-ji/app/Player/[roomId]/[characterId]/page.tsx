@@ -134,7 +134,7 @@ export default function CharacterPage({
   )
 
   const [enemy, __] = useState<Player>(
-    new Player(MAP_HEIGHT - 1, MAP_WIDTH - 1, "enemy", "Enemy", PlayerClass.Rogue, Teams.TEAM2)
+    new Player(MAP_HEIGHT - 1, MAP_WIDTH - 1, "enemy", "Enemy", PlayerClass.Thief, Teams.TEAM2)
   );
 
   useEffect(() => {

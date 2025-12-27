@@ -71,8 +71,8 @@ export default function Page({
             engine.RenderParts(
               myInstance.CurrentX - sight,
               myInstance.CurrentY - sight,
-              myInstance.CurrentX + sight,
-              myInstance.CurrentY + sight,
+              2 * sight + 1,
+              2 * sight + 1,
               false
             )
           );
@@ -178,19 +178,6 @@ export default function Page({
                   </li>
                 ))}
               </ul>
-
-              {items.length > 0 ? (
-                <>
-                  <div className="font-semibold text-foreground pt-2">Items</div>
-                  <ul className="list-disc pl-4 space-y-1">
-                    {items.map((item) => (
-                      <li key={item.Id} className="text-muted-foreground">
-                        {item.Name} at ({item.X}, {item.Y})
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
             </div>
           ) : null}
         </CardContent>
