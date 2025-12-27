@@ -53,7 +53,7 @@ func (s *Struct) Proceed(ctx context.Context, roomId string, logger *slog.Logger
 	defer func() {
 		_ = s.al.Reset(Room.Id(roomId))
 	}()
-	logger = logger.With("ProceedUseCase")
+	logger = logger.With("component", "ProceedUseCase")
 
 	id := Room.Id(roomId)
 
