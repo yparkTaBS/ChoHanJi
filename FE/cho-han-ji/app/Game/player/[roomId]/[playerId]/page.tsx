@@ -38,6 +38,7 @@ export default function Page({
   const [remainingMovement, setRemainingMovement] = useState(0);
   const [hasMoved, setHasMoved] = useState(false);
   const [hasAttacked, setHasAttacked] = useState(false);
+  const [hasSkipped, setHasSkipped] = useState(false);
 
   const { roomId, playerId } = use(params);
 
@@ -85,6 +86,7 @@ export default function Page({
           setRemainingMovement(classMovement);
           setHasMoved(false);
           setHasAttacked(false);
+          setHasSkipped(false);
           const sight = myInstance.Class === PlayerClass.Thief ? 3 : 2;
           setSightRadius(sight);
 
@@ -146,6 +148,7 @@ export default function Page({
   const showDirection = useCallback(
     (direction: Direction) => {
       if (!me || !grid.length || hasAttacked || remainingMovement <= 0) return false;
+      if (hasSkipped) return false;
 
       const deltas: Record<Direction, [number, number]> = {
         up: [0, -1],
@@ -173,12 +176,16 @@ export default function Page({
 
       return targetFlag !== Flag.INACCESSIBLE && !hasBlockingEnemy;
     },
-    [centerPosition.c, centerPosition.r, grid, hasAttacked, mapSize.height, mapSize.width, me, remainingMovement]
+    [centerPosition.c, centerPosition.r, grid, hasAttacked, hasSkipped, mapSize.height, mapSize.width, me, remainingMovement]
   );
 
   const handleMove = useCallback(
     async (direction: Direction) => {
       if (!me || !engineRef.current) return;
+      if (hasSkipped) {
+        setActionError("You have already skipped this turn.");
+        return;
+      }
       if (hasAttacked) {
         setActionError("You cannot move after attacking.");
         return;
@@ -246,33 +253,21 @@ export default function Page({
         setIsSubmitting(false);
       }
     },
-    [hasAttacked, me, remainingMovement, renderAroundPlayer, showDirection]
+    [hasAttacked, hasSkipped, me, remainingMovement, renderAroundPlayer, showDirection]
   );
 
   const handleSkip = useCallback(async () => {
-    if (!me) return;
-    setIsSubmitting(true);
-    setActionError(null);
-    setActionMessage(null);
+      if (!me) return;
+      setIsSubmitting(true);
+      setActionError(null);
+      setActionMessage(null);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/skip?roomId=${roomId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ Id: me.Id }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Skip failed with status ${res.status}`);
-      }
-
       setHasMoved(false);
-      setHasAttacked(false);
-      setRemainingMovement(movementCapacity);
-      setActionMessage("Turn skipped");
+      setHasAttacked(true);
+      setRemainingMovement(0);
+      setHasSkipped(true);
+      setActionMessage("Turn skipped locally");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to skip turn");
     } finally {
@@ -390,7 +385,13 @@ export default function Page({
                   Movement remaining: {remainingMovement} / {movementCapacity}
                 </div>
                 <div>
-                  Attack status: {hasAttacked ? "Already attacked" : hasMoved ? "Unavailable after moving" : "Available"}
+                  Attack status: {hasSkipped
+                    ? "Turn skipped"
+                    : hasAttacked
+                      ? "Already attacked"
+                      : hasMoved
+                        ? "Unavailable after moving"
+                        : "Available"}
                 </div>
               </div>
             </div>
