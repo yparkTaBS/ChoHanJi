@@ -182,7 +182,14 @@ export default function Page({
       console.log("SSE message:", raw);
       try {
         const data = JSON.parse(raw) as { MessageType?: string; Message?: unknown };
-        if (!data.MessageType) return;
+        if (!data || typeof data !== "object") {
+          handleServerUpdate(raw);
+          return;
+        }
+        if (!data.MessageType) {
+          handleServerUpdate(data);
+          return;
+        }
         const baseMessage = new Message(data.MessageType);
 
         if (baseMessage.MessageType === "ping") {
@@ -239,6 +246,8 @@ export default function Page({
         }
       } catch (error) {
         console.log("Failed to parse SSE message", error);
+        // If parsing fails, still attempt to handle as update payload.
+        handleServerUpdate(raw);
       }
     };
 

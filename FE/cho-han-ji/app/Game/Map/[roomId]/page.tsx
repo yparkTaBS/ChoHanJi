@@ -67,7 +67,17 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     const handleEvent = (raw: string) => {
       console.log("SSE raw:", raw);
       try {
-        const data = JSON.parse(raw) as { MessageType: string; Message?: unknown };
+        const data = JSON.parse(raw) as { MessageType?: string; Message?: unknown };
+
+        if (!data || typeof data !== "object") {
+          handleUpdateMessage(raw);
+          return;
+        }
+
+        if (!data.MessageType) {
+          handleUpdateMessage(data);
+          return;
+        }
 
         const baseMessage = new Message(data.MessageType);
 
@@ -100,6 +110,8 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
         }
       } catch (e) {
         console.log(e);
+        // If parsing fails, attempt to treat it as an update payload directly.
+        handleUpdateMessage(raw);
         return;
       }
     };
