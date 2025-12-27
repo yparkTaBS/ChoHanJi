@@ -34,6 +34,10 @@ export default function Page({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [movementCapacity, setMovementCapacity] = useState(0);
+  const [remainingMovement, setRemainingMovement] = useState(0);
+  const [hasMoved, setHasMoved] = useState(false);
+  const [hasAttacked, setHasAttacked] = useState(false);
 
   const { roomId, playerId } = use(params);
 
@@ -76,6 +80,11 @@ export default function Page({
           setItems(msgBody.Items ?? []);
           setConnected(true);
 
+          const classMovement = myInstance.ClassInfo.MovementSpeed;
+          setMovementCapacity(classMovement);
+          setRemainingMovement(classMovement);
+          setHasMoved(false);
+          setHasAttacked(false);
           const sight = myInstance.Class === PlayerClass.Thief ? 3 : 2;
           setSightRadius(sight);
 
@@ -136,7 +145,7 @@ export default function Page({
 
   const showDirection = useCallback(
     (direction: Direction) => {
-      if (!me || !grid.length) return false;
+      if (!me || !grid.length || hasAttacked || remainingMovement <= 0) return false;
 
       const deltas: Record<Direction, [number, number]> = {
         up: [0, -1],
@@ -164,12 +173,20 @@ export default function Page({
 
       return targetFlag !== Flag.INACCESSIBLE && !hasBlockingEnemy;
     },
-    [centerPosition.c, centerPosition.r, grid, mapSize.height, mapSize.width, me]
+    [centerPosition.c, centerPosition.r, grid, hasAttacked, mapSize.height, mapSize.width, me, remainingMovement]
   );
 
   const handleMove = useCallback(
     async (direction: Direction) => {
       if (!me || !engineRef.current) return;
+      if (hasAttacked) {
+        setActionError("You cannot move after attacking.");
+        return;
+      }
+      if (remainingMovement <= 0) {
+        setActionError("No movement remaining for this turn.");
+        return;
+      }
       if (!showDirection(direction)) return;
 
       const deltas: Record<Direction, [number, number]> = {
@@ -196,25 +213,6 @@ export default function Page({
           return;
         }
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/move?roomId=${roomId}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              X: targetX,
-              Y: targetY,
-              PrevX: me.CurrentX,
-              PrevY: me.CurrentY,
-              Id: me.Id,
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(`Move failed with status ${res.status}`);
-        }
-
         engineRef.current.Update([
           new Change(targetX, targetY, me.CurrentX, me.CurrentY, "Player", me.Id),
         ]);
@@ -231,6 +229,8 @@ export default function Page({
             : current
         );
 
+        setHasMoved(true);
+        setRemainingMovement((prev) => Math.max(prev - 1, 0));
         renderAroundPlayer({
           ...me,
           CurrentX: targetX,
@@ -239,14 +239,14 @@ export default function Page({
           Y: targetY,
         });
 
-        setActionMessage("Move submitted");
+        setActionMessage(`Moved to (${targetX}, ${targetY}). Movement left: ${Math.max(remainingMovement - 1, 0)}`);
       } catch (error) {
-        setActionError(error instanceof Error ? error.message : "Failed to submit move");
+        setActionError(error instanceof Error ? error.message : "Failed to process move");
       } finally {
         setIsSubmitting(false);
       }
     },
-    [me, renderAroundPlayer, roomId, showDirection]
+    [hasAttacked, me, remainingMovement, renderAroundPlayer, showDirection]
   );
 
   const handleSkip = useCallback(async () => {
@@ -269,13 +269,16 @@ export default function Page({
         throw new Error(`Skip failed with status ${res.status}`);
       }
 
+      setHasMoved(false);
+      setHasAttacked(false);
+      setRemainingMovement(movementCapacity);
       setActionMessage("Turn skipped");
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to skip turn");
     } finally {
       setIsSubmitting(false);
     }
-  }, [me, roomId]);
+  }, [me, movementCapacity, roomId]);
 
   return (
     <main className="mx-auto w-full max-w-4xl p-6">
@@ -380,6 +383,15 @@ export default function Page({
                 {actionError ? (
                   <span className="text-destructive">{actionError}</span>
                 ) : null}
+              </div>
+
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <div>
+                  Movement remaining: {remainingMovement} / {movementCapacity}
+                </div>
+                <div>
+                  Attack status: {hasAttacked ? "Already attacked" : hasMoved ? "Unavailable after moving" : "Available"}
+                </div>
               </div>
             </div>
           )}
