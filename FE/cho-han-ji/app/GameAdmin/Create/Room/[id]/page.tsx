@@ -6,10 +6,14 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { Message, TypedMessage } from "@/model/SSEMessage";
+import { Teams } from "@/model/Tile";
+import TeamTileClass from "@/components/ui/TeamTileClass";
+import TeamTextClass from "@/components/ui/TeamTextClass";
 
 type Player = {
   id: string;
   name: string;
+  team: Teams;
 };
 
 export default function AdminWaitingRoom({ params }: { params: Promise<{ id: string }> }) {
@@ -42,11 +46,17 @@ export default function AdminWaitingRoom({ params }: { params: Promise<{ id: str
           if (!data.Message) return;
 
           // 2nd parse: Message is a JSON string
-          const playerPartial = JSON.parse(data.Message) as { id: string; name: string };
+          const playerPartial = JSON.parse(data.Message) as { id: string; name: string; team?: number };
+
+          const teamValue =
+            playerPartial.team === Teams.TEAM1 || playerPartial.team === Teams.TEAM2
+              ? playerPartial.team
+              : Teams.Neutral;
 
           const player: Player = {
             id: playerPartial.id,
             name: playerPartial.name,
+            team: teamValue,
           };
 
           const typed = new TypedMessage<Player>(data.MessageType, player);
@@ -131,6 +141,29 @@ export default function AdminWaitingRoom({ params }: { params: Promise<{ id: str
     }
   };
 
+  const teamCounts = players.reduce(
+    (acc, player) => {
+      if (player.team === Teams.TEAM1) {
+        acc.team1 += 1;
+      } else if (player.team === Teams.TEAM2) {
+        acc.team2 += 1;
+      }
+      return acc;
+    },
+    { team1: 0, team2: 0 }
+  );
+
+  const formatTeamLabel = (team: Teams) => {
+    switch (team) {
+      case Teams.TEAM1:
+        return "Team 1";
+      case Teams.TEAM2:
+        return "Team 2";
+      default:
+        return "No team";
+    }
+  };
+
   return (
     <main className="mx-auto w-full max-w-2xl p-6">
       <Card className="rounded-2xl">
@@ -149,6 +182,16 @@ export default function AdminWaitingRoom({ params }: { params: Promise<{ id: str
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Players</span>
               <span className="text-sm font-medium">{players.length}</span>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className={TeamTextClass(Teams.TEAM1)}>Team 1</span>
+              <span className="text-sm font-medium text-foreground">{teamCounts.team1}</span>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className={TeamTextClass(Teams.TEAM2)}>Team 2</span>
+              <span className="text-sm font-medium text-foreground">{teamCounts.team2}</span>
             </div>
           </div>
 
@@ -179,16 +222,21 @@ export default function AdminWaitingRoom({ params }: { params: Promise<{ id: str
 
             {players.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No players yet. (List will appear once provided.)
+                No players yet. (List will appear once provided with their teams.)
               </p>
             ) : (
               <ul className="space-y-2">
                 {players.map((p) => (
                   <li
                     key={p.id}
-                    className="flex items-center justify-between rounded-xl border p-3"
+                    className={`flex items-center justify-between rounded-xl border p-3 ${TeamTileClass(p.team)}`}
                   >
-                    <span className="font-medium">{p.name}</span>
+                    <div className="space-y-1">
+                      <span className="block font-medium leading-none">{p.name}</span>
+                      <span className={`text-xs font-medium ${TeamTextClass(p.team)}`}>
+                        {formatTeamLabel(p.team)}
+                      </span>
+                    </div>
                     <span className="font-mono text-xs text-muted-foreground">{p.id}</span>
                   </li>
                 ))}
@@ -200,4 +248,3 @@ export default function AdminWaitingRoom({ params }: { params: Promise<{ id: str
     </main>
   );
 }
-
