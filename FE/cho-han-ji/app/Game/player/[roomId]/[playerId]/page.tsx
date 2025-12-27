@@ -334,7 +334,7 @@ export default function Page({
                             </div>
                           ) : null}
                           <span className={playerNameClasses}>
-                            {playerNames || "\u00a0"}
+                            {isCenterTile ? "\u00a0" : (playerNames || "\u00a0")}
                           </span>
                           {itemLabels ? (
                             <span className={itemLabelClasses}>
