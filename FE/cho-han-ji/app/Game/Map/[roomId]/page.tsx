@@ -172,11 +172,6 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     return { team1, team2 };
   }, [players]);
 
-  const allReady = useMemo(() => {
-    if (players.length === 0) return false;
-    return players.every((player) => readyPlayers.has(player.Id));
-  }, [players, readyPlayers]);
-
   const renderChestItems = (team: Teams, title: string) => {
     const items = chestItems[team] ?? {};
     const entries = Object.entries(items);
@@ -226,7 +221,7 @@ export default function Page({ params }: { params: Promise<{ roomId: string }> }
     <Card className="w-full max-w-full">
       <CardHeader className="space-y-3">
         <CardTitle>Map</CardTitle>
-        <Button disabled={!allReady || isSubmitting} className="w-fit" onClick={handleSubmit}>
+        <Button disabled={!isSubmitting} className="w-fit" onClick={handleSubmit}>
           {isSubmitting ? "Submitting..." : "Submit"}
         </Button>
       </CardHeader>

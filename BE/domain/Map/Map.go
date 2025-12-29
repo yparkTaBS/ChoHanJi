@@ -174,23 +174,24 @@ func (m *Map) GetTeamTreasureChestLocation(team Team.Enum) (int, int) {
 	}
 }
 
-func (m *Map) DisperseItems(team Team.Enum) error {
+func (m *Map) DisperseItems(team Team.Enum) ([]*Item.Struct, error) {
 	x, y := m.GetTeamTreasureChestLocation(team)
 	tile, err := m.GetTile(x, y)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	items := tile.Items
 	if len(items) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	empty := m.getEmptyTileCoords()
 	if len(empty) == 0 {
-		return errors.New("no empty tiles available for dispersing items")
+		return nil, errors.New("no empty tiles available for dispersing items")
 	}
 
+	var itemsMoved []*Item.Struct
 	for _, item := range items {
 		xy := empty[rand.Intn(len(empty))]
 		x, y := xy[0], xy[1]
@@ -198,10 +199,11 @@ func (m *Map) DisperseItems(team Team.Enum) error {
 		item.X = x
 		item.Y = y
 		m.tiles[x][y].AddItem(item)
+		itemsMoved = append(itemsMoved, item)
 	}
 
 	tile.Items = tile.Items[:0]
-	return nil
+	return itemsMoved, nil
 }
 
 func (m *Map) getEmptyTileCoords() [][2]int {

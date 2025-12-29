@@ -43,17 +43,17 @@ export default class Engine {
     for (const change of changes) {
       const prevTile =
         change.PrevX >= 0 &&
-        change.PrevY >= 0 &&
-        change.PrevY < this.tiles.length &&
-        change.PrevX < this.tiles[0].length
+          change.PrevY >= 0 &&
+          change.PrevY < this.tiles.length &&
+          change.PrevX < this.tiles[0].length
           ? this.tiles[change.PrevY][change.PrevX]
           : null;
 
       const nextTile =
         change.X >= 0 &&
-        change.Y >= 0 &&
-        change.Y < this.tiles.length &&
-        change.X < this.tiles[0].length
+          change.Y >= 0 &&
+          change.Y < this.tiles.length &&
+          change.X < this.tiles[0].length
           ? this.tiles[change.Y][change.X]
           : null;
 

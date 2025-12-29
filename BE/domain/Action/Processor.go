@@ -130,8 +130,10 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 			if !found {
 				return errors.New("attacker does not exist")
 			}
-			if err := fm.Map.DisperseItems(Team.Enum(attacker.TeamNumber)); err != nil {
+			if _, err := fm.Map.DisperseItems(Team.Enum(attacker.TeamNumber)); err != nil {
 				return err
+			} else {
+				// TODO: disperse items
 			}
 			continue
 		}
@@ -269,9 +271,21 @@ func (p *Processor) Process(roomId Room.Id, attacks []AttackStruct, moves []Move
 			continue
 		}
 
+		if len(tile.Player) <= 0 {
+			continue
+		}
+
 		if tile.Player[0].TeamNumber != int(tile.Team) {
-			if err := fm.Map.DisperseItems(Team.Enum(tile.Team)); err != nil {
+			if items, err := fm.Map.DisperseItems(Team.Enum(tile.Team)); err != nil {
 				return err
+			} else {
+				for _, item := range items {
+					x, y := fm.Map.GetSpawn(Team.Enum(tile.Player[0].TeamNumber))
+					tile.Player[0].X = x
+					tile.Player[0].Y = y
+					changes.UpsertPlayer(tile.Player[0].Id, x, y, tile.Player[0].X, tile.Player[0].Y, nil)
+					changes.UpsertItem(item.Id, item.X, item.Y, tile.X, tile.Y)
+				}
 			}
 		}
 

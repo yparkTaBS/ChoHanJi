@@ -335,10 +335,10 @@ export default function Page({
         const targetTile = grid[centerPosition.r + dy]?.[centerPosition.c + dx];
         const [playerNames, , , targetTeam] = targetTile ?? [];
 
-        if (playerNames && targetTeam !== me.Team) {
-          setActionError("An opposing player is blocking that tile.");
-          return;
-        }
+        // if (playerNames && targetTeam !== me.Team) {
+        //   setActionError("An opposing player is blocking that tile.");
+        //   return;
+        // }
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE_URL}api/game/move?roomId=${roomId}`,
